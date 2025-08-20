@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>{{ athlete.name }}'s Metrics</h1>
+            <a href="{{ url_for('add_metric', athlete_id=athlete.id) }}" class="btn btn-primary">Add New Metric</a>
+        </div>
+
+        {% if metrics %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Attendance</th>
+                            <th>Stops</th>
+                            <th>Effort</th>
+                            <th>Attitude</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for metric in metrics %}
+                            <tr>
+                                <td>{{ metric.date.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>
+                                    {% if metric.attendance %}
+                                        <span class="badge bg-success">Present</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Absent</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ metric.stops_during_practice }}</td>
+                                <td>
+                                    <div class="progress">
+                                        <div class="progress-bar bg-info" role="progressbar" 
+                                             style="width: {{ (metric.effort_score / 5) * 100 }}%">
+                                            {{ metric.effort_score }}/5
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="progress">
+                                        <div class="progress-bar bg-success" role="progressbar" 
+                                             style="width: {{ (metric.attitude_score / 5) * 100 }}%">
+                                            {{ metric.attitude_score }}/5
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>{{ metric.notes or '-' }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                No metrics have been recorded for this athlete yet. 
+                <a href="{{ url_for('add_metric', athlete_id=athlete.id) }}">Add the first metric</a>.
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %} 

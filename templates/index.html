@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h1 class="mb-4">Athletes</h1>
+        {% if athletes %}
+            <div class="row">
+                {% for athlete in athletes %}
+                    <div class="col-md-4 mb-4">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ athlete.name }}</h5>
+                                <p class="card-text">
+                                    Metrics recorded: {{ athlete.metrics|length }}
+                                </p>
+                                <a href="{{ url_for('athlete_detail', athlete_id=athlete.id) }}" class="btn btn-primary">View Details</a>
+                                <a href="{{ url_for('add_metric', athlete_id=athlete.id) }}" class="btn btn-success">Add Metric</a>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                No athletes have been added yet. <a href="{{ url_for('add_athlete') }}">Add your first athlete</a>.
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %} 

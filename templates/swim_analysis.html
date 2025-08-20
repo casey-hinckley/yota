@@ -1,0 +1,571 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h1 class="mb-4">Swim Performance Analysis</h1>
+        
+        <!-- Selection Controls -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Select Analysis Criteria</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <label for="athleteSelect" class="form-label">Athlete</label>
+                        <select class="form-select" id="athleteSelect">
+                            <option value="">Choose an athlete...</option>
+                            {% for athlete in athletes %}
+                            <option value="{{ athlete }}">{{ athlete }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="courseSelect" class="form-label">Course</label>
+                        <select class="form-select" id="courseSelect">
+                            <option value="">Choose a course...</option>
+                            {% for course in courses %}
+                            <option value="{{ course.code }}">{{ course.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="eventSelect" class="form-label">Event</label>
+                        <select class="form-select" id="eventSelect">
+                            <option value="">Choose an event...</option>
+                            {% for stroke, events in events.items() %}
+                                {% if events %}
+                                    <optgroup label="{{ stroke }}">
+                                        {% for event in events %}
+                                        <option value="{{ event }}">{{ event }}</option>
+                                        {% endfor %}
+                                    </optgroup>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <button type="button" class="btn btn-primary" id="analyzeBtn" disabled>
+                            Analyze Performance
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultsSection" style="display: none;">
+            <!-- Best Time and Next Cut Cards -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card border-success">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">🏆 Best Time</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-6">
+                                    <h2 class="text-success" id="bestTime">--</h2>
+                                    <p class="text-muted mb-1">Best Time</p>
+                                </div>
+                                <div class="col-6">
+                                    <p class="mb-1"><strong>Date:</strong> <span id="bestTimeDate">--</span></p>
+                                    <p class="mb-1"><strong>Meet:</strong> <span id="bestTimeMeet">--</span></p>
+                                    <p class="mb-0"><strong>Type:</strong> <span id="bestTimeType">--</span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card border-warning">
+                        <div class="card-header bg-warning text-dark">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">🎯 Cut</h5>
+                                <select class="form-select form-select-sm" id="meetSelect" style="width: auto; min-width: 150px;">
+                                    <option value="">Next closest</option>
+                                    {% for meet in meets %}
+                                    <option value="{{ meet }}">{{ meet }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="nextCutInfo">
+                                <p class="mb-1"><strong>Meet:</strong> <span id="nextCutMeet">--</span></p>
+                                <p class="mb-1"><strong>Age Group:</strong> <span id="nextCutAgeGroup">--</span></p>
+                                <p class="mb-1"><strong>Cut Time:</strong> <span id="nextCutTime">--</span></p>
+                                <p class="mb-1"><strong>Distance:</strong> <span id="nextCutDistance">--</span></p>
+                                <p class="mb-0"><strong>Percentage:</strong> <span id="nextCutPercentage">--</span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Achieved Cuts and Summary -->
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <div class="card border-info">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0">🏅 Achieved Cuts</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="achievedCutsList">
+                                <p class="text-muted">No cuts achieved yet.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-secondary">
+                        <div class="card-header bg-secondary text-white">
+                            <h5 class="mb-0">📊 Summary</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-12">
+                                    <h3 class="text-secondary" id="totalSwims">--</h3>
+                                    <p class="text-muted mb-1">Total Swims</p>
+                                </div>
+                            </div>
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <h4 class="text-secondary" id="cutsAchieved">--</h4>
+                                    <p class="text-muted mb-1">Cuts Achieved</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Chart -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">📈 Performance Over Time</h5>
+                </div>
+                <div class="card-body">
+                    <div id="chartContainer" style="height: 500px;">
+                        <canvas id="performanceChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Results Table -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">📋 All Results</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped" id="resultsTable">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Time</th>
+                                    <th>Type</th>
+                                    <th>Meet</th>
+                                </tr>
+                            </thead>
+                            <tbody id="resultsTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attendance Analysis Card -->
+            <div class="card mb-4" id="attendanceAnalysisCard" style="display: none;">
+                <div class="card-header">
+                    <h5 class="mb-0">📊 Attendance-Based Prediction</h5>
+                </div>
+                <div class="card-body" id="attendanceAnalysisInfo">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <strong>Your Attendance:</strong><br>
+                            <span id="athleteAttendance">-</span>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Predicted Improvement:</strong><br>
+                            <span id="predictedImprovement">-</span>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Predicted Time:</strong><br>
+                            <span id="predictedTime">-</span>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Correlation:</strong><br>
+                            <span id="attendanceCorrelation">-</span>
+                            <br>
+                            <small class="text-muted">Based on <span id="sampleSize">-</span> swimmers</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading and Error States -->
+        <div id="loadingState" class="text-center" style="display: none;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Analyzing performance data...</p>
+        </div>
+
+        <div id="errorState" class="alert alert-danger" style="display: none;">
+            <h5>Error</h5>
+            <p id="errorMessage"></p>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js for performance visualization -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+let performanceChart = null;
+
+// Enable/disable analyze button based on selections
+function updateAnalyzeButton() {
+    const athlete = document.getElementById('athleteSelect').value;
+    const course = document.getElementById('courseSelect').value;
+    const event = document.getElementById('eventSelect').value;
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    
+    analyzeBtn.disabled = !(athlete && course && event);
+}
+
+// Event listeners for dropdowns
+document.getElementById('athleteSelect').addEventListener('change', updateAnalyzeButton);
+document.getElementById('courseSelect').addEventListener('change', updateAnalyzeButton);
+document.getElementById('eventSelect').addEventListener('change', updateAnalyzeButton);
+
+// Meet selection change handler
+document.getElementById('meetSelect').addEventListener('change', function() {
+    // If we have results displayed, refresh the analysis with the new meet selection
+    if (document.getElementById('resultsSection').style.display !== 'none') {
+        refreshAnalysis();
+    }
+});
+
+// Function to refresh analysis with current selections
+function refreshAnalysis() {
+    const athlete = document.getElementById('athleteSelect').value;
+    const course = document.getElementById('courseSelect').value;
+    const event = document.getElementById('eventSelect').value;
+    const meet = document.getElementById('meetSelect').value;
+    
+    console.log('Refreshing analysis with:', { athlete, course, event, meet });
+    
+    if (!athlete || !course || !event) {
+        return;
+    }
+    
+    // Show loading state
+    document.getElementById('loadingState').style.display = 'block';
+    document.getElementById('resultsSection').style.display = 'none';
+    document.getElementById('errorState').style.display = 'none';
+    
+    // Build URL with parameters
+    let url = `/api/swim_data?athlete=${encodeURIComponent(athlete)}&course=${encodeURIComponent(course)}&event=${encodeURIComponent(event)}`;
+    if (meet) {
+        url += `&meet=${encodeURIComponent(meet)}`;
+    }
+    
+    console.log('Fetching URL:', url);
+    
+    // Fetch data
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            console.log('Received data:', data);
+            displayResults(data);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('errorMessage').textContent = error.message;
+            document.getElementById('errorState').style.display = 'block';
+        })
+        .finally(() => {
+            document.getElementById('loadingState').style.display = 'none';
+        });
+}
+
+// Analyze button click handler
+document.getElementById('analyzeBtn').addEventListener('click', refreshAnalysis);
+
+function displayResults(data) {
+    // Update best time information
+    document.getElementById('bestTime').textContent = data.best_time.time;
+    document.getElementById('bestTimeDate').textContent = data.best_time.date;
+    document.getElementById('bestTimeMeet').textContent = data.best_time.meet;
+    document.getElementById('bestTimeType').textContent = data.best_time.type;
+    
+    // Update next cut information
+    if (data.next_cut) {
+        console.log('Next cut data:', data.next_cut);
+        console.log('Achieved:', data.next_cut.achieved);
+        console.log('Distance seconds:', data.next_cut.distance_seconds);
+        console.log('Distance percentage:', data.next_cut.distance_percentage);
+        
+        document.getElementById('nextCutMeet').textContent = data.next_cut.meet;
+        document.getElementById('nextCutAgeGroup').textContent = data.next_cut.age_group;
+        document.getElementById('nextCutTime').textContent = data.next_cut.time;
+        
+        let distanceText = formatTime(Math.abs(data.next_cut.distance_seconds));
+        let percentageText = `${Math.abs(data.next_cut.distance_percentage).toFixed(1)}%`;
+        if (data.next_cut.achieved) {
+            distanceText = `+${distanceText}`;
+            percentageText = `+${percentageText}`;
+        }
+        console.log('Final distance text:', distanceText);
+        console.log('Final percentage text:', percentageText);
+        
+        document.getElementById('nextCutDistance').textContent = distanceText;
+        document.getElementById('nextCutPercentage').textContent = percentageText;
+    } else {
+        document.getElementById('nextCutInfo').innerHTML = '<p class="text-muted">No time standards available.</p>';
+    }
+    
+    // Update attendance analysis information
+    if (data.attendance_analysis) {
+        console.log('Attendance analysis data:', data.attendance_analysis);
+        
+        document.getElementById('athleteAttendance').textContent = `${data.attendance_analysis.athlete_attendance.toFixed(1)}%`;
+        document.getElementById('predictedImprovement').textContent = `${data.attendance_analysis.predicted_improvement_percentage.toFixed(1)}%`;
+        document.getElementById('predictedTime').textContent = formatTime(data.attendance_analysis.predicted_time_seconds);
+        document.getElementById('attendanceCorrelation').textContent = data.attendance_analysis.correlation.toFixed(3);
+        document.getElementById('sampleSize').textContent = data.attendance_analysis.sample_size;
+        
+        // Show the attendance analysis card
+        document.getElementById('attendanceAnalysisCard').style.display = 'block';
+    } else {
+        // Hide the attendance analysis card if no data
+        document.getElementById('attendanceAnalysisCard').style.display = 'none';
+    }
+    
+    // Update achieved cuts
+    const achievedCutsList = document.getElementById('achievedCutsList');
+    if (data.achieved_cuts && data.achieved_cuts.length > 0) {
+        let cutsHtml = '';
+        data.achieved_cuts.forEach(cut => {
+            cutsHtml += `<div class="mb-2"><strong>${cut.meet}</strong> (${cut.age_group}) - ${cut.time}</div>`;
+        });
+        achievedCutsList.innerHTML = cutsHtml;
+    } else {
+        achievedCutsList.innerHTML = '<p class="text-muted">No cuts achieved yet.</p>';
+    }
+    
+    // Update summary stats
+    document.getElementById('totalSwims').textContent = data.total_swims;
+    document.getElementById('cutsAchieved').textContent = data.achieved_cuts ? data.achieved_cuts.length : 0;
+    
+    // Update results table
+    const tableBody = document.getElementById('resultsTableBody');
+    tableBody.innerHTML = '';
+    
+    data.chart_data.forEach(swim => {
+        const row = tableBody.insertRow();
+        row.innerHTML = `
+            <td>${formatDate(swim.date)}</td>
+            <td><strong>${swim.time}</strong></td>
+            <td>${swim.type}</td>
+            <td>${swim.meet}</td>
+        `;
+    });
+    
+    // Create performance chart
+    createPerformanceChart(data.chart_data, data.next_cut, data.attendance_analysis);
+    
+    // Show results
+    document.getElementById('resultsSection').style.display = 'block';
+}
+
+function createPerformanceChart(chartData, nextCut, attendanceAnalysis) {
+    const ctx = document.getElementById('performanceChart').getContext('2d');
+    
+    // Destroy existing chart if it exists
+    if (performanceChart) {
+        performanceChart.destroy();
+    }
+    
+    // Prepare data for chart
+    const labels = chartData.map(swim => formatDate(swim.date));
+    const times = chartData.map(swim => swim.time_seconds);
+    const colors = chartData.map((swim, index) => {
+        // Color best time in green, others in blue
+        const minTime = Math.min(...times);
+        return swim.time_seconds === minTime ? '#28a745' : '#007bff';
+    });
+    
+    // Calculate Y-axis range to include both swim times and cut time
+    let minY = Math.min(...times);
+    let maxY = Math.max(...times);
+    
+    if (nextCut && nextCut.time_seconds) {
+        minY = Math.min(minY, nextCut.time_seconds);
+        maxY = Math.max(maxY, nextCut.time_seconds);
+    }
+    
+    // Include attendance prediction in Y-axis range
+    if (attendanceAnalysis && attendanceAnalysis.predicted_time_seconds) {
+        minY = Math.min(minY, attendanceAnalysis.predicted_time_seconds);
+        maxY = Math.max(maxY, attendanceAnalysis.predicted_time_seconds);
+    }
+    
+    // Add padding to the range (10% on each side)
+    const range = maxY - minY;
+    const padding = range * 0.1;
+    minY -= padding;
+    maxY += padding;
+    
+    // Create chart labels - ensure we have at least 2 points for proper line rendering
+    let chartLabels = labels;
+    if (labels.length === 1) {
+        chartLabels = [labels[0], labels[0]]; // Duplicate the single label
+    }
+    
+    // Prepare datasets
+    const datasets = [{
+        label: 'Time (seconds)',
+        data: times,
+        borderColor: '#007bff',
+        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+        borderWidth: 2,
+        fill: false,
+        pointBackgroundColor: colors,
+        pointBorderColor: colors,
+        pointRadius: 6,
+        pointHoverRadius: 8
+    }];
+    
+    // Add next cut as horizontal line if available
+    if (nextCut && nextCut.time_seconds) {
+        const color = nextCut.beyond_fastest ? '#28a745' : '#dc3545';
+        const dash = nextCut.beyond_fastest ? [] : [5, 5];
+        
+        // Always create a line that spans the full chart width
+        // Use at least 2 points to ensure line rendering, even for single data point
+        const numPoints = Math.max(2, labels.length);
+        const cutLineData = Array(numPoints).fill(nextCut.time_seconds);
+        
+        datasets.push({
+            label: `${nextCut.meet} (${nextCut.age_group}) - ${nextCut.time}`,
+            data: cutLineData,
+            borderColor: color,
+            backgroundColor: 'transparent',
+            borderWidth: 3,
+            borderDash: dash,
+            fill: false,
+            pointRadius: 0,
+            pointHoverRadius: 0,
+            tension: 0, // Ensure straight line
+            spanGaps: true // Connect across gaps
+        });
+    }
+    
+    // Add attendance prediction line if available
+    if (attendanceAnalysis && attendanceAnalysis.predicted_time_seconds) {
+        const numPoints = Math.max(2, labels.length);
+        const predictionLineData = Array(numPoints).fill(attendanceAnalysis.predicted_time_seconds);
+        
+        datasets.push({
+            label: `Predicted Time (${attendanceAnalysis.athlete_attendance.toFixed(1)}% attendance)`,
+            data: predictionLineData,
+            borderColor: '#ffc107', // Yellow/gold color
+            backgroundColor: 'transparent',
+            borderWidth: 3,
+            borderDash: [10, 5], // Different dash pattern
+            fill: false,
+            pointRadius: 0,
+            pointHoverRadius: 0,
+            tension: 0,
+            spanGaps: true
+        });
+    }
+    
+    performanceChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: chartLabels,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    reverse: true, // Lower times are better
+                    min: minY,
+                    max: maxY,
+                    title: {
+                        display: true,
+                        text: 'Time (seconds)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Date'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            if (context.datasetIndex === 0) {
+                                const swim = chartData[context.dataIndex];
+                                return [
+                                    `Time: ${swim.time}`,
+                                    `Type: ${swim.type}`,
+                                    `Meet: ${swim.meet}`
+                                ];
+                            } else {
+                                return context.dataset.label;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function formatDate(dateStr) {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+    });
+}
+
+function formatTime(seconds) {
+    if (seconds < 60) {
+        return `${seconds.toFixed(2)}s`;
+    } else if (seconds < 3600) {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        return `${minutes}:${remainingSeconds.toFixed(2).padStart(5, '0')}`;
+    } else {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const remainingSeconds = seconds % 60;
+        return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toFixed(2).padStart(5, '0')}`;
+    }
+}
+</script>
+{% endblock %} 
