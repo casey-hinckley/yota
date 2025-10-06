@@ -1,0 +1,336 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-10 col-xl-8 mx-auto">
+        <div class="card wellness-form">
+            <div class="card-header bg-primary text-white">
+                <h2 class="text-center mb-0">Wellness Questionnaire</h2>
+                <p class="text-center mb-0 opacity-75">Please fill out this form to help track your wellness and recovery</p>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST">
+                    <div class="row">
+                        <!-- Basic Information -->
+                        <div class="col-md-4 mb-3">
+                            <label for="date" class="form-label">Date *</label>
+                            <input type="date" class="form-control" id="date" name="date" required>
+                        </div>
+                    </div>
+
+                    <hr class="my-5">
+
+                    <!-- Sleep Section -->
+                    <div class="mb-4">
+                        <h4 class="mb-4 text-primary">
+                            <i class="fas fa-bed me-2"></i>Sleep
+                        </h4>
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <label for="sleep_hours" class="form-label fw-semibold">
+                                    Hours of Sleep Last Night
+                                    <span class="badge bg-secondary ms-1" 
+                                          data-bs-toggle="popover" 
+                                          data-bs-placement="top" 
+                                          data-bs-content="Select the total number of hours you slept last night. This helps track sleep patterns and recovery."
+                                          style="cursor: help;">?</span>
+                                </label>
+                                <select class="form-select form-select-lg" id="sleep_hours" name="sleep_hours">
+                                    <option value="">Select hours...</option>
+                                    <option value="4">4 hours or less</option>
+                                    <option value="5">5 hours</option>
+                                    <option value="6">6 hours</option>
+                                    <option value="7">7 hours</option>
+                                    <option value="8">8 hours</option>
+                                    <option value="9">9 hours</option>
+                                    <option value="10">10+ hours</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="sleep_quality" class="form-label fw-semibold">
+                                    Sleep Quality
+                                    <span class="badge bg-secondary ms-1" 
+                                          data-bs-toggle="popover" 
+                                          data-bs-placement="top" 
+                                          data-bs-content="Rate the quality of your sleep: 1=Poor (tossed and turned, woke up frequently), 2=Fair (some restlessness), 3=Good (mostly restful), 4=Very Good (deep, restful sleep), 5=Excellent (perfect, uninterrupted sleep)."
+                                          style="cursor: help;">?</span>
+                                </label>
+                                <select class="form-select form-select-lg" id="sleep_quality" name="sleep_quality">
+                                    <option value="">Select quality...</option>
+                                    <option value="1">Poor (1)</option>
+                                    <option value="2">Fair (2)</option>
+                                    <option value="3">Good (3)</option>
+                                    <option value="4">Very Good (4)</option>
+                                    <option value="5">Excellent (5)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="my-5">
+
+                    <!-- Wellness Metrics -->
+                    <div class="mb-4">
+                        <h4 class="mb-4 text-primary">
+                            <i class="fas fa-heartbeat me-2"></i>Wellness Metrics
+                        </h4>
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <label for="energy_level" class="form-label fw-semibold">
+                                    Energy Level (1-10)
+                                    <span class="badge bg-secondary ms-1" 
+                                          data-bs-toggle="popover" 
+                                          data-bs-placement="top" 
+                                          data-bs-content="Rate your current energy level: 1-2=Very Low (exhausted, can barely function), 3-4=Low (tired, need rest), 5-6=Average (normal energy), 7-8=High (energetic, ready to go), 9-10=Very High (bursting with energy, can't sit still)."
+                                          style="cursor: help;">?</span>
+                                </label>
+                                <select class="form-select form-select-lg" id="energy_level" name="energy_level">
+                                    <option value="">Select energy level...</option>
+                                    <option value="1">1 - Very Low</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5 - Average</option>
+                                    <option value="6">6</option>
+                                    <option value="7">7</option>
+                                    <option value="8">8</option>
+                                    <option value="9">9</option>
+                                    <option value="10">10 - Very High</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="stress_level" class="form-label fw-semibold">
+                                    Stress Level (1-10)
+                                    <span class="badge bg-secondary ms-1" 
+                                          data-bs-toggle="popover" 
+                                          data-bs-placement="top" 
+                                          data-bs-content="Rate your current stress level: 1-2=Very Low (completely relaxed, no worries), 3-4=Low (slightly concerned), 5-6=Average (normal daily stress), 7-8=High (feeling overwhelmed, anxious), 9-10=Very High (extremely stressed, can't focus)."
+                                          style="cursor: help;">?</span>
+                                </label>
+                                <select class="form-select form-select-lg" id="stress_level" name="stress_level">
+                                    <option value="">Select stress level...</option>
+                                    <option value="1">1 - Very Low</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5 - Average</option>
+                                    <option value="6">6</option>
+                                    <option value="7">7</option>
+                                    <option value="8">8</option>
+                                    <option value="9">9</option>
+                                    <option value="10">10 - Very High</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row g-4 mt-2">
+                            <div class="col-md-6">
+                                <label for="practice_effort" class="form-label fw-semibold">
+                                    Practice Effort (1-10)
+                                    <span class="badge bg-secondary ms-1" 
+                                          data-bs-toggle="popover" 
+                                          data-bs-placement="top" 
+                                          data-bs-content="Rate your effort during practice today: 1-2=Very Low (barely trying, going through motions), 3-4=Low (minimal effort, not pushing yourself), 5-6=Average (normal practice effort), 7-8=High (working hard, pushing yourself), 9-10=Very High (maximum effort, giving everything you have). Leave blank if you did not have practice today."
+                                          style="cursor: help;">?</span>
+                                </label>
+                                <select class="form-select form-select-lg" id="practice_effort" name="practice_effort">
+                                    <option value="">No practice today / Select effort...</option>
+                                    <option value="1">1 - Very Low</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5 - Average</option>
+                                    <option value="6">6</option>
+                                    <option value="7">7</option>
+                                    <option value="8">8</option>
+                                    <option value="9">9</option>
+                                    <option value="10">10 - Very High</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="motivation" class="form-label fw-semibold">
+                                    Motivation Level (1-10)
+                                    <span class="badge bg-secondary ms-1" 
+                                          data-bs-toggle="popover" 
+                                          data-bs-placement="top" 
+                                          data-bs-content="Rate your motivation to train/compete: 1-2=Very Low (no desire, forcing yourself), 3-4=Low (reluctant, need encouragement), 5-6=Average (normal motivation), 7-8=High (excited to train), 9-10=Very High (can't wait, extremely motivated)."
+                                          style="cursor: help;">?</span>
+                                </label>
+                                <select class="form-select form-select-lg" id="motivation" name="motivation">
+                                    <option value="">Select motivation...</option>
+                                    <option value="1">1 - Very Low</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5 - Average</option>
+                                    <option value="6">6</option>
+                                    <option value="7">7</option>
+                                    <option value="8">8</option>
+                                    <option value="9">9</option>
+                                    <option value="10">10 - Very High</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="my-5">
+
+                    <!-- Physical Wellness -->
+                    <div class="mb-4">
+                        <h4 class="mb-4 text-primary">
+                            <i class="fas fa-dumbbell me-2"></i>Physical Wellness
+                        </h4>
+                        <div class="row g-4">
+                            <div class="col-md-4">
+                                <label for="hydration" class="form-label fw-semibold">
+                                    Hydration Level
+                                    <span class="badge bg-secondary ms-1" 
+                                          data-bs-toggle="popover" 
+                                          data-bs-placement="top" 
+                                          data-bs-content="Rate your hydration status: Excellent=Well hydrated, clear urine, no thirst. Good=Adequately hydrated, light yellow urine. Fair=Could drink more, slightly thirsty. Poor=Dehydrated, dark urine, very thirsty."
+                                          style="cursor: help;">?</span>
+                                </label>
+                                <select class="form-select form-select-lg" id="hydration" name="hydration">
+                                    <option value="">Select hydration...</option>
+                                    <option value="excellent">Excellent - Well hydrated</option>
+                                    <option value="good">Good - Adequately hydrated</option>
+                                    <option value="fair">Fair - Could drink more</option>
+                                    <option value="poor">Poor - Dehydrated</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="nutrition" class="form-label fw-semibold">
+                                    Nutrition Quality
+                                    <span class="badge bg-secondary ms-1" 
+                                          data-bs-toggle="popover" 
+                                          data-bs-placement="top" 
+                                          data-bs-content="Rate your sports nutrition today: Excellent=Proper pre-practice carbs, post-practice protein, whole foods, good hydration. Good=Mostly good sports nutrition with some processed foods. Fair=Some good choices but missing key nutrients or timing. Poor=Mostly processed foods, poor timing, inadequate hydration."
+                                          style="cursor: help;">?</span>
+                                </label>
+                                <select class="form-select form-select-lg" id="nutrition" name="nutrition">
+                                    <option value="">Select nutrition...</option>
+                                    <option value="excellent">Excellent - Proper sports nutrition</option>
+                                    <option value="good">Good - Mostly good sports nutrition</option>
+                                    <option value="fair">Fair - Some good choices, missing key nutrients</option>
+                                    <option value="poor">Poor - Mostly processed foods, poor timing</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="soreness" class="form-label fw-semibold">
+                                    Muscle Soreness
+                                    <span class="badge bg-secondary ms-1" 
+                                          data-bs-toggle="popover" 
+                                          data-bs-placement="top" 
+                                          data-bs-content="Rate your muscle soreness: None=No soreness, feel perfect. Mild=Slight soreness, barely noticeable. Moderate=Noticeable soreness, some discomfort. Severe=Very sore, affects movement. Extreme=Painful to move, will hurt to walk tomorrow."
+                                          style="cursor: help;">?</span>
+                                </label>
+                                <select class="form-select form-select-lg" id="soreness" name="soreness">
+                                    <option value="">Select soreness level...</option>
+                                    <option value="none">None - No soreness</option>
+                                    <option value="mild">Mild - Slight soreness</option>
+                                    <option value="moderate">Moderate - Noticeable soreness</option>
+                                    <option value="severe">Severe - Very sore</option>
+                                    <option value="extreme">Extreme - Painful to move</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="my-5">
+
+                    <!-- Mobility & Recovery -->
+                    <div class="mb-4">
+                        <h4 class="mb-4 text-primary">
+                            <i class="fas fa-running me-2"></i>Mobility & Recovery
+                        </h4>
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <div class="form-check form-check-lg">
+                                    <input class="form-check-input" type="checkbox" id="mobility" name="mobility" value="on">
+                                    <label class="form-check-label fw-semibold" for="mobility">
+                                        Did you do your mobility/rehab routine today?
+                                        <span class="badge bg-secondary ms-2" 
+                                              data-bs-toggle="popover" 
+                                              data-bs-placement="top" 
+                                              data-bs-content="Did you complete your mobility/rehab routine today? This includes stretching, foam rolling, corrective exercises, or any prescribed rehabilitation exercises."
+                                              style="cursor: help;">?</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="my-5">
+
+                    <!-- Goal Tracking Section -->
+                    <div id="goalTrackingSection" {% if goals %}style="display: block;"{% else %}style="display: none;"{% endif %}>
+                        <div class="mb-4">
+                            <h4 class="mb-4 text-primary">
+                                <i class="fas fa-bullseye me-2"></i>Daily Goal Tracking
+                            </h4>
+                            <div class="row g-4">
+                                <div class="col-md-6">
+                                    <div class="card h-100 border-primary">
+                                        <div class="card-body">
+                                            <h5 class="card-title text-primary">
+                                                <i class="fas fa-target me-2"></i>Goal 1
+                                            </h5>
+                                            <p id="wellness_goal1_display" class="card-text">{{ goals.goal1 if goals.goal1 else "No goal set" }}</p>
+                                            <div class="form-check form-check-lg">
+                                                <input class="form-check-input" type="checkbox" id="goal1_achieved" name="goal1_achieved">
+                                                <label class="form-check-label fw-semibold" for="goal1_achieved">
+                                                    Achieved today
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card h-100 border-primary">
+                                        <div class="card-body">
+                                            <h5 class="card-title text-primary">
+                                                <i class="fas fa-target me-2"></i>Goal 2
+                                            </h5>
+                                            <p id="wellness_goal2_display" class="card-text">{{ goals.goal2 if goals.goal2 else "No goal set" }}</p>
+                                            <div class="form-check form-check-lg">
+                                                <input class="form-check-input" type="checkbox" id="goal2_achieved" name="goal2_achieved">
+                                                <label class="form-check-label fw-semibold" for="goal2_achieved">
+                                                    Achieved today
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="my-5">
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                        <button type="submit" class="btn btn-primary btn-lg px-5">
+                            <i class="fas fa-paper-plane me-2"></i>Submit Wellness Questionnaire
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Set today's date as default
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('date').value = today;
+    
+    // Initialize Bootstrap popovers
+    var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+    var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
+        return new bootstrap.Popover(popoverTriggerEl, {
+            trigger: 'hover focus',
+            html: true
+        });
+    });
+});
+</script>
+{% endblock %}

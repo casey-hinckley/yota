@@ -1,0 +1,698 @@
+{% extends "base.html" %}
+
+{% block title %}Attendance - Athlete Metrics Tracker{% endblock %}
+
+{% block content %}
+<style>
+.clickable-badge {
+    cursor: pointer;
+    transition: opacity 0.2s;
+    min-height: 44px; /* Minimum touch target size */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px;
+}
+.clickable-badge:hover {
+    opacity: 0.8;
+}
+
+/* Mobile-friendly improvements */
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+    }
+    
+    .d-flex.gap-3 {
+        gap: 1rem !important;
+        flex-wrap: wrap;
+    }
+    
+    .form-select, .form-control {
+        min-height: 44px;
+        font-size: 16px; /* Prevents zoom on iOS */
+    }
+    
+    .table {
+        font-size: 14px;
+    }
+    
+    .table td, .table th {
+        padding: 12px 8px;
+        vertical-align: middle;
+    }
+    
+    /* Wrap athlete names on mobile */
+    .athlete-name {
+        word-wrap: break-word;
+        white-space: normal;
+        max-width: 80px;
+        line-height: 1.2;
+    }
+    
+    .form-check-input {
+        width: 20px;
+        height: 20px;
+        min-width: 20px;
+    }
+    
+    .form-check {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+    }
+    
+    .skips-btn {
+        min-width: 44px !important;
+        min-height: 44px !important;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .skips-count {
+        font-size: 16px;
+        min-width: 40px !important;
+    }
+    
+    /* Hide desktop skips column on mobile */
+    .desktop-skips-only {
+        display: none !important;
+    }
+    
+    /* Show mobile skips counter underneath */
+    .mobile-skips-only {
+        display: flex !important;
+    }
+    
+    /* Adjust the Present column header for mobile */
+    .mobile-present-header::after {
+        content: " / Skips";
+        font-size: 0.8em;
+        font-weight: normal;
+    }
+}
+
+/* Default styles - hide mobile skips, show desktop skips */
+.mobile-skips-only {
+    display: none;
+}
+
+.desktop-skips-only {
+    display: table-cell;
+}
+
+/* Desktop styles */
+@media (min-width: 769px) {
+    /* Hide mobile skips counter on desktop */
+    .mobile-skips-only {
+        display: none !important;
+    }
+    
+    /* Show desktop skips column */
+    .desktop-skips-only {
+        display: table-cell !important;
+    }
+}
+    
+    .notes-input {
+        font-size: 14px;
+        min-height: 36px;
+    }
+    
+    .badge {
+        font-size: 12px;
+        padding: 8px 10px;
+        min-width: 80px;
+        text-align: center;
+    }
+    
+    .dropdown-menu {
+        min-width: 150px;
+    }
+    
+    .dropdown-item {
+        padding: 12px 16px;
+        font-size: 14px;
+    }
+    
+    h2 {
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .alert {
+        font-size: 14px;
+        padding: 12px;
+    }
+}
+
+/* Extra spacing for mobile */
+.mobile-spacing {
+    margin-bottom: 1.5rem;
+}
+
+.mobile-row-spacing {
+    margin-bottom: 1rem;
+}
+</style>
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="mobile-spacing">
+                <h2 class="mb-3"><i class="fas fa-calendar-check"></i> Attendance Management</h2>
+                
+                <!-- Mobile-friendly controls -->
+                <div class="row g-3 mb-4">
+                    <div class="col-12 col-md-6">
+                        <label for="rosterFilter" class="form-label fw-bold">Filter by Roster</label>
+                        <select id="rosterFilter" class="form-select">
+                            <option value="">All Athletes</option>
+                            {% for roster in rosters %}
+                            <option value="{{ roster }}">{{ roster }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label for="datePicker" class="form-label fw-bold">Select Date</label>
+                        <input type="date" id="datePicker" class="form-control">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i>
+                <strong>Instructions:</strong> Select a date and mark attendance for each athlete. 
+                Changes are saved automatically. Use partial attendance for athletes who attended part of practice.
+            </div>
+            
+            <div class="card">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0" id="attendanceTable">
+                            <thead class="table-dark sticky-top">
+                                <tr>
+                                    <th class="mobile-row-spacing" style="color: black;">Athlete Name</th>
+                                    <th class="mobile-row-spacing" style="color: black;">Status</th>
+                                    <th class="mobile-row-spacing text-center mobile-present-header" style="color: black;">Present</th>
+                                    <th class="mobile-row-spacing text-center desktop-skips-only" style="color: black;">Skips</th>
+                                </tr>
+                            </thead>
+                            <tbody id="attendanceTableBody">
+                                <!-- Attendance data will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Status Legend -->
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> Status Legend</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                            <span class="badge bg-success">Present</span><br><small>Full attendance</small>
+                        </div>
+                        <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                            <span class="badge bg-danger">Absent</span><br><small>No attendance</small>
+                        </div>
+                        <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                            <span class="badge bg-warning">Sick</span><br><small>Illness</small>
+                        </div>
+                        <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                            <span class="badge bg-info">Cross Country</span><br><small>XC practice</small>
+                        </div>
+                        <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                            <span class="badge bg-primary">Open Water</span><br><small>Open water swim</small>
+                        </div>
+                        <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                            <span class="badge bg-secondary">Extracurricular</span><br><small>Other activity</small>
+                        </div>
+                        <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                            <span class="badge bg-info">Vacation</span><br><small>Family vacation</small>
+                        </div>
+                        <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                            <span class="badge bg-warning">Injury</span><br><small>Injured</small>
+                        </div>
+                        <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                            <span class="badge bg-success">Competition</span><br><small>At meet/competition</small>
+                        </div>
+                        <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                            <span class="badge bg-secondary">Excused</span><br><small>Excused absence</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const datePicker = document.getElementById('datePicker');
+    const attendanceTableBody = document.getElementById('attendanceTableBody');
+    
+    // Set default date to today
+    const today = new Date().toISOString().split('T')[0];
+    datePicker.value = today;
+    
+    // Load attendance data when date or roster filter changes
+    datePicker.addEventListener('change', loadAttendanceData);
+    rosterFilter.addEventListener('change', loadAttendanceData);
+    
+    // Load initial data
+    loadAttendanceData();
+    
+    function loadAttendanceData() {
+        const selectedDate = datePicker.value;
+        const selectedRoster = rosterFilter.value;
+        if (!selectedDate) return;
+        
+        // Build URL with roster filter parameter
+        let url = `/api/attendance/${selectedDate}`;
+        if (selectedRoster) {
+            url += `?roster=${encodeURIComponent(selectedRoster)}`;
+        }
+        
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showAlert('error', data.error);
+                    return;
+                }
+                renderAttendanceTable(data.attendance);
+            })
+            .catch(error => {
+                console.error('Error loading attendance:', error);
+                showAlert('error', 'Failed to load attendance data');
+            });
+    }
+    
+    function getStatusBadge(status, attendanceValue) {
+        if (status === 'present') {
+            if (attendanceValue === 1.0) {
+                return '<span class="badge bg-success">Present</span>';
+            } else {
+                return `<span class="badge bg-warning">Partial (${attendanceValue})</span>`;
+            }
+        } else if (status === 'absent') {
+            return '<span class="badge bg-danger">Absent</span>';
+        } else if (status === 'sick') {
+            return '<span class="badge bg-warning">Sick</span>';
+        } else if (status === 'vacation') {
+            return '<span class="badge bg-info">Vacation</span>';
+        } else if (status === 'competition') {
+            return '<span class="badge bg-success">Competition</span>';
+        } else if (status === 'cross_country') {
+            return '<span class="badge bg-info">Cross Country</span>';
+        } else if (status === 'open_water') {
+            return '<span class="badge bg-primary">Open Water</span>';
+        } else if (status === 'extracurricular') {
+            return '<span class="badge bg-secondary">Extracurricular</span>';
+        } else if (status === 'injury') {
+            return '<span class="badge bg-warning">Injury</span>';
+        } else if (status === 'excused') {
+            return '<span class="badge bg-secondary">Excused</span>';
+        } else {
+            return '<span class="badge bg-secondary">Unknown</span>';
+        }
+    }
+
+    function getPartialDropdownOptions() {
+        return `
+            <li><a class="dropdown-item" href="#" onclick="setAttendanceValue(1.0)">Full (1.0)</a></li>
+            <li><a class="dropdown-item" href="#" onclick="setAttendanceValue(0.75)">3/4 (0.75)</a></li>
+            <li><a class="dropdown-item" href="#" onclick="setAttendanceValue(0.5)">Half (0.5)</a></li>
+            <li><a class="dropdown-item" href="#" onclick="setAttendanceValue(0.25)">1/4 (0.25)</a></li>
+        `;
+    }
+
+    function getAbsenceDropdownOptions() {
+        return `
+            <li><a class="dropdown-item" href="#" onclick="setAbsenceType('absent')">Absent</a></li>
+            <li><a class="dropdown-item" href="#" onclick="setAbsenceType('sick')">Sick</a></li>
+            <li><a class="dropdown-item" href="#" onclick="setAbsenceType('vacation')">Vacation</a></li>
+            <li><a class="dropdown-item" href="#" onclick="setAbsenceType('competition')">Competition</a></li>
+            <li><a class="dropdown-item" href="#" onclick="setAbsenceType('cross_country')">Cross Country</a></li>
+            <li><a class="dropdown-item" href="#" onclick="setAbsenceType('open_water')">Open Water</a></li>
+            <li><a class="dropdown-item" href="#" onclick="setAbsenceType('extracurricular')">Extracurricular</a></li>
+            <li><a class="dropdown-item" href="#" onclick="setAbsenceType('injury')">Injury</a></li>
+            <li><a class="dropdown-item" href="#" onclick="setAbsenceType('excused')">Excused</a></li>
+        `;
+    }
+
+    function renderAttendanceTable(attendanceData) {
+        attendanceTableBody.innerHTML = '';
+        
+        attendanceData.forEach(athlete => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td class="mobile-row-spacing">
+                    <div class="fw-bold athlete-name">${athlete.athlete_name}</div>
+                </td>
+                <td class="mobile-row-spacing">
+                    <div class="dropdown">
+                        <span class="attendance-status clickable-badge dropdown-toggle" 
+                              data-bs-toggle="dropdown" 
+                              data-athlete-id="${athlete.athlete_id}"
+                              aria-expanded="false">
+                            ${getStatusBadge(athlete.status, athlete.attendance_value)}
+                        </span>
+                        <ul class="dropdown-menu" data-athlete-id="${athlete.athlete_id}">
+                            ${athlete.status === 'present' ? getPartialDropdownOptions() : getAbsenceDropdownOptions()}
+                        </ul>
+                    </div>
+                </td>
+                <td class="mobile-row-spacing text-center">
+                    <div class="form-check d-flex justify-content-center">
+                        <input class="form-check-input attendance-checkbox" 
+                               type="checkbox" 
+                               data-athlete-id="${athlete.athlete_id}"
+                               ${athlete.status === 'present' ? 'checked' : ''}>
+                    </div>
+                    <!-- Mobile: Skips counter underneath -->
+                    <div class="d-flex align-items-center justify-content-center gap-1 mt-2 mobile-skips-only">
+                        <button type="button" class="btn btn-sm btn-outline-secondary skips-btn" 
+                                data-athlete-id="${athlete.athlete_id}" 
+                                onclick="decreaseSkips(${athlete.athlete_id})"
+                                style="min-width: 32px; min-height: 32px; padding: 0;">
+                            <i class="fas fa-minus"></i>
+                        </button>
+                        <span class="skips-count fw-bold" 
+                              data-athlete-id="${athlete.athlete_id}" 
+                              style="min-width: 30px; text-align: center;">
+                            ${athlete.skips || 0}
+                        </span>
+                        <button type="button" class="btn btn-sm btn-outline-secondary skips-btn" 
+                                data-athlete-id="${athlete.athlete_id}" 
+                                onclick="increaseSkips(${athlete.athlete_id})"
+                                style="min-width: 32px; min-height: 32px; padding: 0;">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </td>
+                <!-- Desktop: Skips counter in separate column -->
+                <td class="mobile-row-spacing text-center desktop-skips-only">
+                    <div class="d-flex align-items-center justify-content-center gap-1">
+                        <button type="button" class="btn btn-sm btn-outline-secondary skips-btn" 
+                                data-athlete-id="${athlete.athlete_id}" 
+                                onclick="decreaseSkips(${athlete.athlete_id})"
+                                style="min-width: 32px; min-height: 32px; padding: 0;">
+                            <i class="fas fa-minus"></i>
+                        </button>
+                        <span class="skips-count fw-bold" 
+                              data-athlete-id="${athlete.athlete_id}" 
+                              style="min-width: 30px; text-align: center;">
+                            ${athlete.skips || 0}
+                        </span>
+                        <button type="button" class="btn btn-sm btn-outline-secondary skips-btn" 
+                                data-athlete-id="${athlete.athlete_id}" 
+                                onclick="increaseSkips(${athlete.athlete_id})"
+                                style="min-width: 32px; min-height: 32px; padding: 0;">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </td>
+            `;
+            attendanceTableBody.appendChild(row);
+        });
+        
+        // Add event listeners
+        addEventListeners();
+    }
+    
+    function addEventListeners() {
+        // Checkbox change listeners
+        document.querySelectorAll('.attendance-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const athleteId = this.dataset.athleteId;
+                const isPresent = this.checked;
+                
+                // Update the status badge immediately
+                const statusElement = document.querySelector(`.attendance-status[data-athlete-id="${athleteId}"]`);
+                const dropdownMenu = document.querySelector(`.dropdown-menu[data-athlete-id="${athleteId}"]`);
+                if (isPresent) {
+                    statusElement.innerHTML = '<span class="badge bg-success">Present</span>';
+                    // Update dropdown options for partial attendance
+                    dropdownMenu.innerHTML = getPartialDropdownOptions();
+                } else {
+                    statusElement.innerHTML = '<span class="badge bg-danger">Absent</span>';
+                    // Update dropdown options for absence types
+                    dropdownMenu.innerHTML = getAbsenceDropdownOptions();
+                }
+                
+                // Update the database
+                updateAttendanceSimple(athleteId, isPresent);
+            });
+        });
+        
+    }
+    
+    function updateAttendanceSimple(athleteId, isPresent) {
+        const selectedDate = datePicker.value;
+        
+        const data = {
+            athlete_id: parseInt(athleteId),
+            date: selectedDate,
+            status: isPresent ? 'present' : 'absent',
+            attendance_value: isPresent ? 1.0 : 0.0,
+            notes: ''
+        };
+        
+        fetch('/api/attendance', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.error) {
+                showAlert('error', result.error);
+            } else {
+                // Don't show success alert for simple checkbox changes
+            }
+        })
+        .catch(error => {
+            console.error('Error updating attendance:', error);
+            showAlert('error', 'Failed to update attendance');
+        });
+    }
+    
+    
+    function updateAttendance(athleteId, status, attendanceValue) {
+        const selectedDate = datePicker.value;
+        
+        const data = {
+            athlete_id: parseInt(athleteId),
+            date: selectedDate,
+            status: status,
+            attendance_value: parseFloat(attendanceValue)
+        };
+        
+        fetch('/api/attendance', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.error) {
+                showAlert('error', result.error);
+            } else {
+                showAlert('success', 'Attendance updated successfully');
+                // Reload the table to show updated status
+                loadAttendanceData();
+            }
+        })
+        .catch(error => {
+            console.error('Error updating attendance:', error);
+            showAlert('error', 'Failed to update attendance');
+        });
+    }
+    
+    function deleteAttendance(athleteId) {
+        const selectedDate = datePicker.value;
+        
+        fetch('/api/attendance/delete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                athlete_id: parseInt(athleteId),
+                date: selectedDate
+            })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.error) {
+                showAlert('error', result.error);
+            } else {
+                showAlert('success', 'Attendance record deleted');
+                loadAttendanceData(); // Reload the table
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting attendance:', error);
+            showAlert('error', 'Failed to delete attendance record');
+        });
+    }
+    
+    function showAlert(type, message) {
+        const alertClass = type === 'error' ? 'alert-danger' : 'alert-success';
+        const alertHtml = `
+            <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        
+        // Remove existing alerts
+        document.querySelectorAll('.alert').forEach(alert => alert.remove());
+        
+        // Add new alert at the top
+        const container = document.querySelector('.container');
+        container.insertAdjacentHTML('afterbegin', alertHtml);
+        
+        // Auto-dismiss after 3 seconds
+        setTimeout(() => {
+            const alert = document.querySelector('.alert');
+            if (alert) {
+                alert.remove();
+            }
+        }, 3000);
+    }
+    
+    // Global functions for dropdown actions
+    window.setAbsenceType = function(status) {
+        // Find the athlete ID from the clicked dropdown item
+        const dropdownItem = event.target.closest('.dropdown-menu');
+        const athleteId = dropdownItem.dataset.athleteId;
+        
+        // Update the status badge
+        const statusElement = document.querySelector(`.attendance-status[data-athlete-id="${athleteId}"]`);
+        statusElement.innerHTML = getStatusBadge(status, 0.0);
+        
+        // Update the checkbox if needed
+        const checkbox = document.querySelector(`.attendance-checkbox[data-athlete-id="${athleteId}"]`);
+        if (status === 'present') {
+            checkbox.checked = true;
+            dropdownItem.innerHTML = getPartialDropdownOptions();
+        } else {
+            checkbox.checked = false;
+        }
+        
+        // Update the database
+        updateAttendance(athleteId, status, status === 'present' ? 1.0 : 0.0, '');
+    };
+    
+    window.setAttendanceValue = function(value) {
+        // Find the athlete ID from the clicked dropdown item
+        const dropdownItem = event.target.closest('.dropdown-menu');
+        const athleteId = dropdownItem.dataset.athleteId;
+        
+        // Update the status badge
+        const statusElement = document.querySelector(`.attendance-status[data-athlete-id="${athleteId}"]`);
+        statusElement.innerHTML = getStatusBadge('present', value);
+        
+        // Update the database
+        updateAttendance(athleteId, 'present', value, '');
+    };
+    
+    // Global functions for skips counter
+    window.increaseSkips = function(athleteId) {
+        // Find all elements with this athlete ID (both mobile and desktop versions)
+        const skipsElements = document.querySelectorAll(`.skips-count[data-athlete-id="${athleteId}"]`);
+        
+        // Update all elements with this athlete ID (both mobile and desktop versions)
+        skipsElements.forEach((skipsElement) => {
+            const currentSkips = parseInt(skipsElement.textContent) || 0;
+            const newSkips = currentSkips + 1;
+            
+            // Update the display immediately
+            skipsElement.textContent = newSkips;
+        });
+        
+        // Update the database (only once)
+        const firstElement = skipsElements[0];
+        if (firstElement) {
+            const currentSkips = parseInt(firstElement.textContent) - 1; // Subtract 1 since we already incremented
+            updateSkips(athleteId, currentSkips + 1, currentSkips);
+        }
+    };
+    
+    window.decreaseSkips = function(athleteId) {
+        // Find all elements with this athlete ID (both mobile and desktop versions)
+        const skipsElements = document.querySelectorAll(`.skips-count[data-athlete-id="${athleteId}"]`);
+        
+        // Update all elements with this athlete ID (both mobile and desktop versions)
+        skipsElements.forEach((skipsElement) => {
+            const currentSkips = parseInt(skipsElement.textContent) || 0;
+            const newSkips = Math.max(0, currentSkips - 1); // Don't go below 0
+            
+            // Update the display immediately
+            skipsElement.textContent = newSkips;
+        });
+        
+        // Update the database (only once)
+        const firstElement = skipsElements[0];
+        if (firstElement) {
+            const currentSkips = parseInt(firstElement.textContent) + 1; // Add 1 since we already decremented
+            updateSkips(athleteId, Math.max(0, currentSkips - 1), currentSkips);
+        }
+    };
+    
+    function updateSkips(athleteId, skips, previousSkips) {
+        const selectedDate = datePicker.value;
+        
+        const data = {
+            athlete_id: parseInt(athleteId),
+            date: selectedDate,
+            skips: skips
+        };
+        
+        fetch('/api/attendance/skips', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.error) {
+                showAlert('error', result.error);
+                // Revert the display if there was an error
+                const skipsElement = document.querySelector(`.skips-count[data-athlete-id="${athleteId}"]`);
+                skipsElement.textContent = previousSkips;
+            }
+            // Don't show success alert for skips updates to avoid spam
+        })
+        .catch(error => {
+            console.error('Error updating skips:', error);
+            showAlert('error', 'Failed to update skips');
+            // Revert the display if there was an error
+            const skipsElement = document.querySelector(`.skips-count[data-athlete-id="${athleteId}"]`);
+            skipsElement.textContent = previousSkips;
+        });
+    }
+});
+</script>
+{% endblock %}

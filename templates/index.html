@@ -12,10 +12,9 @@
                             <div class="card-body">
                                 <h5 class="card-title">{{ athlete.name }}</h5>
                                 <p class="card-text">
-                                    Metrics recorded: {{ athlete.metrics|length }}
+                                    Athlete ID: {{ athlete.id }}
                                 </p>
-                                <a href="{{ url_for('athlete_detail', athlete_id=athlete.id) }}" class="btn btn-primary">View Details</a>
-                                <a href="{{ url_for('add_metric', athlete_id=athlete.id) }}" class="btn btn-success">Add Metric</a>
+                                <a href="{{ url_for('athletes.athlete_detail', athlete_id=athlete.id) }}" class="btn btn-primary">View Details</a>
                             </div>
                         </div>
                     </div>
@@ -23,9 +22,9 @@
             </div>
         {% else %}
             <div class="alert alert-info">
-                No athletes have been added yet. <a href="{{ url_for('add_athlete') }}">Add your first athlete</a>.
+                No athletes have been added yet.
             </div>
         {% endif %}
     </div>
 </div>
-{% endblock %} 
+{% endblock %}

@@ -1,0 +1,320 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h1 class="mb-4">Wellness Dashboard</h1>
+        
+        <!-- Metric Selection Card -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-line"></i> Select Wellness Metric</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-12">
+                        <label for="metricSelect" class="form-label">Choose a metric to view over time</label>
+                        <select class="form-select" id="metricSelect">
+                            <optgroup label="Sleep">
+                                <option value="sleep_hours" selected>Sleep Hours</option>
+                                <option value="sleep_quality">Sleep Quality (1-5)</option>
+                            </optgroup>
+                            <optgroup label="Wellness Metrics">
+                                <option value="energy_level">Energy Level (1-10)</option>
+                                <option value="stress_level">Stress Level (1-10)</option>
+                                <option value="practice_effort">Practice Effort (1-10)</option>
+                                <option value="motivation">Motivation Level (1-10)</option>
+                            </optgroup>
+                            <optgroup label="Physical Wellness">
+                                <option value="hydration">Hydration</option>
+                                <option value="nutrition">Nutrition Quality</option>
+                                <option value="soreness">Muscle Soreness</option>
+                                <option value="mobility">Mobility/Rehab Routine</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div id="statisticsSection" style="display: none;">
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card border-primary">
+                        <div class="card-body text-center">
+                            <h3 class="text-primary" id="averageValue">--</h3>
+                            <p class="text-muted mb-0">Average</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-success">
+                        <div class="card-body text-center">
+                            <h3 class="text-success" id="maxValue">--</h3>
+                            <p class="text-muted mb-0">Best</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-warning">
+                        <div class="card-body text-center">
+                            <h3 class="text-warning" id="minValue">--</h3>
+                            <p class="text-muted mb-0">Lowest</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-info">
+                        <div class="card-body text-center">
+                            <h3 class="text-info" id="totalEntries">--</h3>
+                            <p class="text-muted mb-0">Total Entries</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chart Section -->
+        <div id="chartSection" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0" id="chartTitle"><i class="fas fa-chart-area"></i> Metric Over Time</h5>
+                </div>
+                <div class="card-body">
+                    <div style="height: 400px; position: relative;">
+                        <canvas id="wellnessChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading and Error States -->
+        <div id="loadingState" class="text-center" style="display: none;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading wellness data...</p>
+        </div>
+
+        <div id="errorState" class="alert alert-warning" style="display: none;">
+            <h5><i class="fas fa-info-circle"></i> No Data Available</h5>
+            <p id="errorMessage">You haven't submitted any wellness questionnaires yet. Start tracking your wellness to see your progress over time!</p>
+            <a href="{{ url_for('wellness.wellness_questionnaire') }}" class="btn btn-primary">
+                <i class="fas fa-clipboard-check"></i> Submit Wellness Questionnaire
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Metric metadata -->
+<script type="application/json" id="metrics-data">
+{{ metrics | tojson }}
+</script>
+
+<script>
+let wellnessChart = null;
+const metricsData = JSON.parse(document.getElementById('metrics-data').textContent);
+
+// Auto-load wellness data when dropdown changes
+document.getElementById('metricSelect').addEventListener('change', function() {
+    const metric = this.value;
+    if (metric) {
+        loadWellnessData(metric);
+    }
+});
+
+// Auto-load the first metric on page load
+window.addEventListener('DOMContentLoaded', function() {
+    const initialMetric = document.getElementById('metricSelect').value;
+    if (initialMetric) {
+        loadWellnessData(initialMetric);
+    }
+});
+
+function loadWellnessData(metric) {
+    // Show loading state
+    document.getElementById('loadingState').style.display = 'block';
+    document.getElementById('chartSection').style.display = 'none';
+    document.getElementById('statisticsSection').style.display = 'none';
+    document.getElementById('errorState').style.display = 'none';
+    
+    // Fetch data
+    fetch(`/api/wellness_data?metric=${metric}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            displayWellnessChart(metric, data);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('errorMessage').textContent = error.message;
+            document.getElementById('errorState').style.display = 'block';
+        })
+        .finally(() => {
+            document.getElementById('loadingState').style.display = 'none';
+        });
+}
+
+function displayWellnessChart(metric, data) {
+    const metricInfo = metricsData[metric];
+    let metricName = metricInfo.name;
+    
+    // If this is a goal metric and we have the goal text, display it
+    if (metric.includes('goal') && data.goal_text) {
+        metricName = `Goal: "${data.goal_text}"`;
+    }
+    
+    // Update statistics
+    const stats = data.statistics;
+    
+    // Format statistics based on metric type
+    if (metric === 'sleep_hours') {
+        document.getElementById('averageValue').textContent = stats.average ? `${stats.average} hrs` : '--';
+        document.getElementById('maxValue').textContent = stats.max ? `${stats.max} hrs` : '--';
+        document.getElementById('minValue').textContent = stats.min ? `${stats.min} hrs` : '--';
+    } else if (metricInfo.type === 'boolean') {
+        // For goals, show achievement percentage and score range
+        document.getElementById('averageValue').textContent = stats.average ? `${stats.average}%` : '--';
+        document.getElementById('maxValue').textContent = stats.max !== null ? stats.max : '--';
+        document.getElementById('minValue').textContent = stats.min !== null ? stats.min : '--';
+    } else if (metricInfo.type === 'categorical') {
+        const displayMap = {
+            'hydration': ['Poor', 'Fair', 'Good', 'Excellent'],
+            'nutrition': ['Poor', 'Fair', 'Good', 'Excellent'],
+            'soreness': ['None', 'Mild', 'Moderate', 'Severe', 'Extreme']
+        };
+        const labels = displayMap[metric] || [];
+        document.getElementById('averageValue').textContent = stats.average ? stats.average.toFixed(1) : '--';
+        document.getElementById('maxValue').textContent = stats.max !== null && labels[stats.max] ? labels[stats.max] : '--';
+        document.getElementById('minValue').textContent = stats.min !== null && labels[stats.min] ? labels[stats.min] : '--';
+    } else {
+        document.getElementById('averageValue').textContent = stats.average ? stats.average.toFixed(1) : '--';
+        document.getElementById('maxValue').textContent = stats.max || '--';
+        document.getElementById('minValue').textContent = stats.min || '--';
+    }
+    
+    document.getElementById('totalEntries').textContent = data.total_entries;
+    
+    // Update chart title
+    document.getElementById('chartTitle').innerHTML = `<i class="fas fa-chart-area"></i> ${metricName} Over Time`;
+    
+    // Create chart
+    createWellnessChart(metric, metricInfo, data.chart_data);
+    
+    // Show sections
+    document.getElementById('statisticsSection').style.display = 'block';
+    document.getElementById('chartSection').style.display = 'block';
+}
+
+function createWellnessChart(metric, metricInfo, chartData) {
+    const ctx = document.getElementById('wellnessChart').getContext('2d');
+    
+    // Destroy existing chart if it exists
+    if (wellnessChart) {
+        wellnessChart.destroy();
+    }
+    
+    // Prepare data
+    const labels = chartData.map(d => d.display_date);
+    const values = chartData.map(d => d.value);
+    
+    // Determine color based on metric type
+    let borderColor = 'rgb(75, 192, 192)';
+    let backgroundColor = 'rgba(75, 192, 192, 0.2)';
+    
+    if (metric === 'stress_level') {
+        borderColor = 'rgb(255, 99, 132)';
+        backgroundColor = 'rgba(255, 99, 132, 0.2)';
+    } else if (metric === 'energy_level' || metric === 'motivation') {
+        borderColor = 'rgb(54, 162, 235)';
+        backgroundColor = 'rgba(54, 162, 235, 0.2)';
+    } else if (metric === 'sleep_hours' || metric === 'sleep_quality') {
+        borderColor = 'rgb(153, 102, 255)';
+        backgroundColor = 'rgba(153, 102, 255, 0.2)';
+    } else if (metric.includes('goal') || metric === 'mobility') {
+        // Similar to attendance chart colors
+        borderColor = 'rgb(255, 193, 7)';
+        backgroundColor = 'rgba(255, 193, 7, 0.2)';
+    }
+    
+    // Create chart configuration
+    const config = {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: metricInfo.name,
+                data: values,
+                borderColor: borderColor,
+                backgroundColor: backgroundColor,
+                tension: 0.3,
+                fill: true,
+                pointRadius: 5,
+                pointHoverRadius: 7
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const dataIndex = context.dataIndex;
+                            const dayData = chartData[dataIndex];
+                            return `${metricInfo.name}: ${dayData.display_value}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: (metric.includes('goal') || metric === 'mobility') ? false : true,
+                    title: {
+                        display: true,
+                        text: (metric.includes('goal') || metric === 'mobility') ? 'Running Score' : metricInfo.name
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            // Custom tick labels for categorical data
+                            if (metric === 'hydration' || metric === 'nutrition') {
+                                const labels = ['', 'Poor', 'Fair', 'Good', 'Excellent'];
+                                return labels[value] || value;
+                            } else if (metric === 'soreness') {
+                                const labels = ['None', 'Mild', 'Moderate', 'Severe', 'Extreme'];
+                                return labels[value] || value;
+                            }
+                            // For goals, just show the numeric score
+                            return value;
+                        }
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Date'
+                    },
+                    ticks: {
+                        maxTicksLimit: 10
+                    }
+                }
+            }
+        }
+    };
+    
+    wellnessChart = new Chart(ctx, config);
+}
+</script>
+
+{% endblock %}
+

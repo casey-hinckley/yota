@@ -4,63 +4,1318 @@
 <div class="row">
     <div class="col-md-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>{{ athlete.name }}'s Metrics</h1>
-            <a href="{{ url_for('add_metric', athlete_id=athlete.id) }}" class="btn btn-primary">Add New Metric</a>
+            <div class="d-flex align-items-center">
+                {% if current_user.user_type != 'coach' %}
+                <a href="{{ url_for('athletes.index') }}" class="btn btn-outline-secondary me-3">
+                    <i class="fas fa-arrow-left"></i> Back to Athletes
+                </a>
+                {% endif %}
+                <h1>{{ athlete.name }}'s Profile</h1>
+            </div>
         </div>
 
-        {% if metrics %}
-            <div class="table-responsive">
-                <table class="table table-striped">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Attendance</th>
-                            <th>Stops</th>
-                            <th>Effort</th>
-                            <th>Attitude</th>
-                            <th>Notes</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for metric in metrics %}
-                            <tr>
-                                <td>{{ metric.date.strftime('%Y-%m-%d %H:%M') }}</td>
-                                <td>
-                                    {% if metric.attendance %}
-                                        <span class="badge bg-success">Present</span>
-                                    {% else %}
-                                        <span class="badge bg-danger">Absent</span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ metric.stops_during_practice }}</td>
-                                <td>
-                                    <div class="progress">
-                                        <div class="progress-bar bg-info" role="progressbar" 
-                                             style="width: {{ (metric.effort_score / 5) * 100 }}%">
-                                            {{ metric.effort_score }}/5
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="progress">
-                                        <div class="progress-bar bg-success" role="progressbar" 
-                                             style="width: {{ (metric.attitude_score / 5) * 100 }}%">
-                                            {{ metric.attitude_score }}/5
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>{{ metric.notes or '-' }}</td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Athlete Information</h5>
+                <p class="card-text">
+                    <strong>Name:</strong> {{ athlete.name }}<br>
+                    <strong>ID:</strong> {{ athlete.id }}<br>
+                    <strong>Age:</strong> {{ athlete.age or 'N/A' }}{% if not athlete.age %} <span class="badge bg-warning text-dark">Required for swim analysis</span>{% endif %}<br>
+                    <strong>Gender:</strong> {{ athlete.gender or 'N/A' }}{% if not athlete.gender %} <span class="badge bg-warning text-dark">Required for swim analysis</span>{% endif %}<br>
+                    <strong>Birthday:</strong> {{ athlete.birthday.strftime('%B %d, %Y') if athlete.birthday else 'N/A' }}<br>
+                    <strong>Roster:</strong> {{ athlete.roster or 'No Roster Assigned' }}
+                </p>
+                {% if not athlete.age or not athlete.gender %}
+                <div class="alert alert-warning mb-0">
+                    <i class="fas fa-exclamation-triangle"></i> <strong>Note:</strong> Age and gender information is required to show time standards and cuts in swim analysis. Please update the athlete's profile.
+                </div>
+                {% endif %}
             </div>
-        {% else %}
-            <div class="alert alert-info">
-                No metrics have been recorded for this athlete yet. 
-                <a href="{{ url_for('add_metric', athlete_id=athlete.id) }}">Add the first metric</a>.
+        </div>
+
+        <!-- Attendance Metrics -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-calendar-check"></i> Attendance Metrics</h5>
             </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <h3 class="text-primary">{{ attendance_metrics.attendance_percentage }}%</h3>
+                            <p class="text-muted">Overall Attendance</p>
+                            <small class="text-muted">
+                                {{ attendance_metrics.athlete_present_days }} of {{ attendance_metrics.total_practice_days }} practice days
+                            </small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <h5 class="text-info">{{ attendance_metrics.roster }}</h5>
+                            <p class="text-muted">Practice Group</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <h5 class="text-success">{{ attendance_metrics.total_practice_days }}</h5>
+                            <p class="text-muted">Total Practice Days</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Attendance Trend Chart -->
+                <div class="mt-4">
+                    <h6>Attendance Score Trend</h6>
+                    <p class="text-muted small mb-2">
+                        <i class="fas fa-info-circle"></i> 
+                        Running score: +1 for full attendance (100%), +0.75 for 75%, +0.5 for 50%, +0.25 for 25%, -1 for absence (0%)
+                    </p>
+                    <div class="row text-center small text-muted mb-2">
+                        <div class="col">
+                            <span class="badge bg-success">🟢 100%</span>
+                        </div>
+                        <div class="col">
+                            <span class="badge bg-warning">🟡 75%</span>
+                        </div>
+                        <div class="col">
+                            <span class="badge bg-warning">🟡 50%</span>
+                        </div>
+                        <div class="col">
+                            <span class="badge bg-warning">🟡 25%</span>
+                        </div>
+                        <div class="col">
+                            <span class="badge bg-danger">🔴 0%</span>
+                        </div>
+                    </div>
+                    <div style="height: 200px; position: relative;">
+                        <canvas id="attendanceChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Wellness Metrics -->
+        {% if wellness_available %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-heart-pulse"></i> Wellness Metrics</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-12">
+                        <label for="wellnessMetricSelect" class="form-label">Select Wellness Metric</label>
+                        <select class="form-select" id="wellnessMetricSelect">
+                            <optgroup label="Sleep">
+                                <option value="sleep_hours" selected>Sleep Hours</option>
+                                <option value="sleep_quality">Sleep Quality (1-5)</option>
+                            </optgroup>
+                            <optgroup label="Wellness Metrics">
+                                <option value="energy_level">Energy Level (1-10)</option>
+                                <option value="stress_level">Stress Level (1-10)</option>
+                                <option value="practice_effort">Practice Effort (1-10)</option>
+                                <option value="motivation">Motivation Level (1-10)</option>
+                            </optgroup>
+                            <optgroup label="Physical Wellness">
+                                <option value="hydration">Hydration</option>
+                                <option value="nutrition">Nutrition Quality</option>
+                                <option value="soreness">Muscle Soreness</option>
+                            </optgroup>
+                            <optgroup label="Performance Metrics">
+                                <option value="skips">Skips Score</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Wellness Statistics Cards -->
+                <div id="wellnessStatisticsSection" style="display: none;" class="mt-4">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="card border-primary">
+                                <div class="card-body text-center">
+                                    <h4 class="text-primary" id="wellnessAverageValue">--</h4>
+                                    <p class="text-muted mb-0 small">Average</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-success">
+                                <div class="card-body text-center">
+                                    <h4 class="text-success" id="wellnessMaxValue">--</h4>
+                                    <p class="text-muted mb-0 small">Best</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-warning">
+                                <div class="card-body text-center">
+                                    <h4 class="text-warning" id="wellnessMinValue">--</h4>
+                                    <p class="text-muted mb-0 small">Lowest</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-info">
+                                <div class="card-body text-center">
+                                    <h4 class="text-info" id="wellnessTotalEntries">--</h4>
+                                    <p class="text-muted mb-0 small">Total Entries</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Wellness Chart -->
+                <div id="wellnessChartSection" style="display: none;" class="mt-4">
+                    <h6 id="wellnessChartTitle"><i class="fas fa-chart-area"></i> Metric Over Time</h6>
+                    <div style="height: 300px; position: relative;">
+                        <canvas id="wellnessChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Wellness Loading State -->
+                <div id="wellnessLoadingState" class="text-center mt-3" style="display: none;">
+                    <div class="spinner-border text-primary spinner-border-sm" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2 small">Loading wellness data...</p>
+                </div>
+
+                <!-- Wellness Error State -->
+                <div id="wellnessErrorState" class="alert alert-info mt-3" style="display: none;">
+                    <p id="wellnessErrorMessage" class="mb-0 small"></p>
+                </div>
+            </div>
+        </div>
         {% endif %}
+
+        <!-- Goals Section -->
+        {% if wellness_available %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-bullseye"></i> Goal Tracking</h5>
+            </div>
+            <div class="card-body">
+                <div id="goalsContainer">
+                    <!-- Goals will be dynamically loaded here -->
+                </div>
+
+                <!-- Goals Loading State -->
+                <div id="goalsLoadingState" class="text-center" style="display: block;">
+                    <div class="spinner-border text-primary spinner-border-sm" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2 small">Loading goal data...</p>
+                </div>
+
+                <!-- Goals Error State -->
+                <div id="goalsErrorState" class="alert alert-info" style="display: none;">
+                    <p id="goalsErrorMessage" class="mb-0"></p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Swim Performance Analysis -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-swimmer"></i> Swim Performance Analysis</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <label for="courseSelect" class="form-label">Course</label>
+                        <select class="form-select" id="courseSelect">
+                            <option value="">Choose a course...</option>
+                            {% for course in courses %}
+                            <option value="{{ course.code }}">{{ course.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="eventSelect" class="form-label">Event</label>
+                        <select class="form-select" id="eventSelect">
+                            <option value="">Choose an event...</option>
+                            {% for stroke, events_list in events.items() %}
+                                {% if events_list %}
+                                    <optgroup label="{{ stroke }}">
+                                        {% for event in events_list %}
+                                        <option value="{{ event }}">{{ event }}</option>
+                                        {% endfor %}
+                                    </optgroup>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <button type="button" class="btn btn-primary" id="analyzeBtn" disabled>
+                            Analyze Performance
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultsSection" style="display: none;">
+            <!-- Best Time and Next Cut Cards -->
+            <div class="row mb-4 mt-4">
+                <div class="col-md-6">
+                    <div class="card border-success">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">🏆 Best Time</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-6">
+                                    <h2 class="text-success" id="bestTime">--</h2>
+                                    <p class="text-muted mb-1">Best Time</p>
+                                </div>
+                                <div class="col-6">
+                                    <p class="mb-1"><strong>Date:</strong> <span id="bestTimeDate">--</span></p>
+                                    <p class="mb-1"><strong>Meet:</strong> <span id="bestTimeMeet">--</span></p>
+                                    <p class="mb-0"><strong>Type:</strong> <span id="bestTimeType">--</span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card border-warning">
+                        <div class="card-header bg-warning text-dark">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">🎯 Cut</h5>
+                                <select class="form-select form-select-sm" id="meetSelect" style="width: auto; min-width: 150px;">
+                                    <option value="">Next closest</option>
+                                    {% for meet in meets %}
+                                    <option value="{{ meet }}">{{ meet }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="nextCutInfo">
+                                <p class="mb-1"><strong>Meet:</strong> <span id="nextCutMeet">--</span></p>
+                                <p class="mb-1"><strong>Age Group:</strong> <span id="nextCutAgeGroup">--</span></p>
+                                <p class="mb-1"><strong>Cut Time:</strong> <span id="nextCutTime">--</span></p>
+                                <p class="mb-1"><strong>Distance:</strong> <span id="nextCutDistance">--</span></p>
+                                <p class="mb-0"><strong>Percentage:</strong> <span id="nextCutPercentage">--</span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Achieved Cuts and Summary -->
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <div class="card border-info">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0">🏅 Achieved Cuts</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="achievedCutsList">
+                                <p class="text-muted">No cuts achieved yet.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-secondary">
+                        <div class="card-header bg-secondary text-white">
+                            <h5 class="mb-0">📊 Summary</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-12">
+                                    <h3 class="text-secondary" id="totalSwims">--</h3>
+                                    <p class="text-muted mb-1">Total Swims</p>
+                                </div>
+                            </div>
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <h4 class="text-secondary" id="cutsAchieved">--</h4>
+                                    <p class="text-muted mb-1">Cuts Achieved</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Chart -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">📈 Performance Over Time</h5>
+                </div>
+                <div class="card-body">
+                    <div id="chartContainer" style="height: 500px;">
+                        <canvas id="performanceChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Results Table -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">📋 All Results</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped" id="resultsTable">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Time</th>
+                                    <th>Type</th>
+                                    <th>Meet</th>
+                                </tr>
+                            </thead>
+                            <tbody id="resultsTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attendance Analysis Card -->
+            <div class="card mt-4" id="attendanceAnalysisCard" style="display: none;">
+                <div class="card-header">
+                    <h5 class="mb-0">📊 Attendance-Based Prediction</h5>
+                </div>
+                <div class="card-body" id="attendanceAnalysisInfo">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <strong>Your Attendance:</strong><br>
+                            <span id="athleteAttendance">-</span>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Predicted Improvement:</strong><br>
+                            <span id="predictedImprovement">-</span>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Predicted Time:</strong><br>
+                            <span id="predictedTime">-</span>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Correlation:</strong><br>
+                            <span id="attendanceCorrelation">-</span>
+                            <br>
+                            <small class="text-muted">Based on <span id="sampleSize">-</span> swimmers</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading and Error States -->
+        <div id="loadingState" class="text-center mt-4" style="display: none;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Analyzing performance data...</p>
+        </div>
+
+        <div id="errorState" class="alert alert-danger mt-4" style="display: none;">
+            <h5>Error</h5>
+            <p id="errorMessage"></p>
+        </div>
+
     </div>
 </div>
-{% endblock %} 
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Attendance data -->
+<script type="application/json" id="attendance-data">
+{{ attendance_metrics.daily_attendance | tojson }}
+</script>
+
+<!-- Athlete ID -->
+<script type="application/json" id="athlete-id">
+{{ athlete.id }}
+</script>
+
+<!-- Wellness Metrics Data -->
+{% if wellness_available %}
+<script type="application/json" id="wellness-metrics-data">
+{{ wellness_metrics | tojson }}
+</script>
+<script type="application/json" id="wellness-user-id">
+{{ wellness_user_id }}
+</script>
+{% endif %}
+
+<script>
+// Global variable for performance chart
+let performanceChart = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Attendance Chart
+    const attendanceData = JSON.parse(document.getElementById('attendance-data').textContent);
+    
+    if (attendanceData.length > 0) {
+        // Prepare data for Chart.js
+        const labels = attendanceData.map(item => item.display_date);
+        const runningScoreData = attendanceData.map(item => item.running_score);
+        
+        // Find min and max scores for better Y-axis scaling
+        const minScore = Math.min(...runningScoreData);
+        const maxScore = Math.max(...runningScoreData);
+        const padding = Math.max(2, (maxScore - minScore) * 0.1);
+        
+        // Create the chart
+        const ctx = document.getElementById('attendanceChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Running Score',
+                    data: runningScoreData,
+                    borderColor: 'rgb(75, 192, 192)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.3)',
+                    tension: 0.1,
+                    fill: {
+                        target: 'origin',
+                        above: 'rgba(75, 192, 192, 0.3)'
+                    },
+                    pointBackgroundColor: function(context) {
+                        const dataIndex = context.dataIndex;
+                        const dayData = attendanceData[dataIndex];
+                        // Color points based on attendance performance
+                        if (dayData.attendance_value >= 1.0) return 'rgb(34, 197, 94)'; // Green for 100%
+                        if (dayData.attendance_value >= 0.75) return 'rgb(251, 191, 36)'; // Yellow for 75%
+                        if (dayData.attendance_value >= 0.5) return 'rgb(251, 191, 36)'; // Yellow for 50%
+                        if (dayData.attendance_value >= 0.25) return 'rgb(251, 191, 36)'; // Yellow for 25%
+                        return 'rgb(239, 68, 68)'; // Red for 0% (absence)
+                    },
+                    pointBorderColor: function(context) {
+                        const dataIndex = context.dataIndex;
+                        const dayData = attendanceData[dataIndex];
+                        if (dayData.attendance_value >= 1.0) return 'rgb(34, 197, 94)';
+                        if (dayData.attendance_value >= 0.75) return 'rgb(251, 191, 36)';
+                        if (dayData.attendance_value >= 0.5) return 'rgb(251, 191, 36)';
+                        if (dayData.attendance_value >= 0.25) return 'rgb(251, 191, 36)';
+                        return 'rgb(239, 68, 68)';
+                    }
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: {
+                            boxWidth: 12,
+                            font: {
+                                size: 12
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const dataIndex = context.dataIndex;
+                                const dayData = attendanceData[dataIndex];
+                                return [
+                                    'Score: ' + dayData.running_score,
+                                    'Daily Points: ' + (dayData.daily_points > 0 ? '+' : '') + dayData.daily_points,
+                                    'Status: ' + dayData.status.charAt(0).toUpperCase() + dayData.status.slice(1),
+                                    'Attendance: ' + (dayData.attendance_value * 100).toFixed(0) + '%'
+                                ];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: {
+                            font: {
+                                size: 10
+                            },
+                            maxTicksLimit: 8
+                        }
+                    },
+                    y: {
+                        min: Math.min(0, minScore - padding),
+                        max: maxScore + padding,
+                        ticks: {
+                            font: {
+                                size: 10
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    } else {
+        // Show message if no attendance data
+        document.getElementById('attendanceChart').parentElement.innerHTML = 
+            '<div class="alert alert-info text-center">No attendance data available</div>';
+    }
+    
+    // Swim Analysis - Enable/disable analyze button based on selections
+    function updateAnalyzeButton() {
+        const course = document.getElementById('courseSelect').value;
+        const event = document.getElementById('eventSelect').value;
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        
+        analyzeBtn.disabled = !(course && event);
+    }
+    
+    // Event listeners for dropdowns
+    document.getElementById('courseSelect').addEventListener('change', updateAnalyzeButton);
+    document.getElementById('eventSelect').addEventListener('change', updateAnalyzeButton);
+    
+    // Meet selection change handler
+    document.getElementById('meetSelect').addEventListener('change', function() {
+        // If we have results displayed, refresh the analysis with the new meet selection
+        if (document.getElementById('resultsSection').style.display !== 'none') {
+            refreshAnalysis();
+        }
+    });
+    
+    // Analyze button click handler
+    document.getElementById('analyzeBtn').addEventListener('click', refreshAnalysis);
+});
+
+// Function to refresh analysis with current selections
+function refreshAnalysis() {
+    const athleteId = JSON.parse(document.getElementById('athlete-id').textContent);
+    const course = document.getElementById('courseSelect').value;
+    const event = document.getElementById('eventSelect').value;
+    const meet = document.getElementById('meetSelect').value;
+    
+    console.log('Refreshing analysis with:', { athleteId, course, event, meet });
+    
+    if (!course || !event) {
+        return;
+    }
+    
+    // Show loading state
+    document.getElementById('loadingState').style.display = 'block';
+    document.getElementById('resultsSection').style.display = 'none';
+    document.getElementById('errorState').style.display = 'none';
+    
+    // Build URL with parameters
+    let url = `/api/swim_data?athlete_id=${athleteId}&course=${encodeURIComponent(course)}&event=${encodeURIComponent(event)}`;
+    if (meet) {
+        url += `&meet=${encodeURIComponent(meet)}`;
+    }
+    
+    console.log('Fetching URL:', url);
+    
+    // Fetch data
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            console.log('Received data:', data);
+            displayResults(data);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            let errorMsg = error.message;
+            if (errorMsg.includes('No data found') || errorMsg.includes('standards')) {
+                errorMsg += ' This may be because age or gender information is not set for this athlete.';
+            }
+            document.getElementById('errorMessage').textContent = errorMsg;
+            document.getElementById('errorState').style.display = 'block';
+        })
+        .finally(() => {
+            document.getElementById('loadingState').style.display = 'none';
+        });
+}
+
+function displayResults(data) {
+    // Update best time information
+    document.getElementById('bestTime').textContent = data.best_time.time;
+    document.getElementById('bestTimeDate').textContent = data.best_time.date;
+    document.getElementById('bestTimeMeet').textContent = data.best_time.meet;
+    document.getElementById('bestTimeType').textContent = data.best_time.type;
+    
+    // Update next cut information
+    if (data.next_cut) {
+        console.log('Next cut data:', data.next_cut);
+        console.log('Achieved:', data.next_cut.achieved);
+        console.log('Distance seconds:', data.next_cut.distance_seconds);
+        console.log('Distance percentage:', data.next_cut.distance_percentage);
+        
+        document.getElementById('nextCutMeet').textContent = data.next_cut.meet;
+        document.getElementById('nextCutAgeGroup').textContent = data.next_cut.age_group;
+        document.getElementById('nextCutTime').textContent = data.next_cut.time;
+        
+        let distanceText = formatTime(Math.abs(data.next_cut.distance_seconds));
+        let percentageText = `${Math.abs(data.next_cut.distance_percentage).toFixed(1)}%`;
+        if (data.next_cut.achieved) {
+            distanceText = `+${distanceText}`;
+            percentageText = `+${percentageText}`;
+        }
+        console.log('Final distance text:', distanceText);
+        console.log('Final percentage text:', percentageText);
+        
+        document.getElementById('nextCutDistance').textContent = distanceText;
+        document.getElementById('nextCutPercentage').textContent = percentageText;
+    } else {
+        document.getElementById('nextCutInfo').innerHTML = '<p class="text-muted">No time standards available.</p>';
+    }
+    
+    // Update attendance analysis information
+    if (data.attendance_analysis) {
+        console.log('Attendance analysis data:', data.attendance_analysis);
+        
+        document.getElementById('athleteAttendance').textContent = `${data.attendance_analysis.athlete_attendance.toFixed(1)}%`;
+        document.getElementById('predictedImprovement').textContent = `${data.attendance_analysis.predicted_improvement_percentage.toFixed(1)}%`;
+        document.getElementById('predictedTime').textContent = formatTime(data.attendance_analysis.predicted_time_seconds);
+        document.getElementById('attendanceCorrelation').textContent = data.attendance_analysis.correlation.toFixed(3);
+        document.getElementById('sampleSize').textContent = data.attendance_analysis.sample_size;
+        
+        // Show the attendance analysis card
+        document.getElementById('attendanceAnalysisCard').style.display = 'block';
+    } else {
+        // Hide the attendance analysis card if no data
+        document.getElementById('attendanceAnalysisCard').style.display = 'none';
+    }
+    
+    // Update achieved cuts
+    const achievedCutsList = document.getElementById('achievedCutsList');
+    if (data.achieved_cuts && data.achieved_cuts.length > 0) {
+        let cutsHtml = '';
+        data.achieved_cuts.forEach(cut => {
+            cutsHtml += `<div class="mb-2"><strong>${cut.meet}</strong> (${cut.age_group}) - ${cut.time}</div>`;
+        });
+        achievedCutsList.innerHTML = cutsHtml;
+    } else {
+        achievedCutsList.innerHTML = '<p class="text-muted">No cuts achieved yet.</p>';
+    }
+    
+    // Update summary stats
+    document.getElementById('totalSwims').textContent = data.total_swims;
+    document.getElementById('cutsAchieved').textContent = data.achieved_cuts ? data.achieved_cuts.length : 0;
+    
+    // Update results table
+    const tableBody = document.getElementById('resultsTableBody');
+    tableBody.innerHTML = '';
+    
+    data.chart_data.forEach(swim => {
+        const row = tableBody.insertRow();
+        row.innerHTML = `
+            <td>${formatDate(swim.date)}</td>
+            <td><strong>${swim.time}</strong></td>
+            <td>${swim.type}</td>
+            <td>${swim.meet}</td>
+        `;
+    });
+    
+    // Create performance chart
+    createPerformanceChart(data.chart_data, data.next_cut, data.attendance_analysis);
+    
+    // Show results
+    document.getElementById('resultsSection').style.display = 'block';
+}
+
+function createPerformanceChart(chartData, nextCut, attendanceAnalysis) {
+    const ctx = document.getElementById('performanceChart').getContext('2d');
+    
+    // Destroy existing chart if it exists
+    if (performanceChart) {
+        performanceChart.destroy();
+    }
+    
+    // Prepare data for chart
+    const labels = chartData.map(swim => formatDate(swim.date));
+    const times = chartData.map(swim => swim.time_seconds);
+    const colors = chartData.map((swim, index) => {
+        // Color best time in green, others in blue
+        const minTime = Math.min(...times);
+        return swim.time_seconds === minTime ? '#28a745' : '#007bff';
+    });
+    
+    // Calculate Y-axis range to include both swim times and cut time
+    let minY = Math.min(...times);
+    let maxY = Math.max(...times);
+    
+    if (nextCut && nextCut.time_seconds) {
+        minY = Math.min(minY, nextCut.time_seconds);
+        maxY = Math.max(maxY, nextCut.time_seconds);
+    }
+    
+    // Include attendance prediction in Y-axis range
+    if (attendanceAnalysis && attendanceAnalysis.predicted_time_seconds) {
+        minY = Math.min(minY, attendanceAnalysis.predicted_time_seconds);
+        maxY = Math.max(maxY, attendanceAnalysis.predicted_time_seconds);
+    }
+    
+    // Add padding to the range (10% on each side)
+    const range = maxY - minY;
+    const padding = range * 0.1;
+    minY -= padding;
+    maxY += padding;
+    
+    // Create chart labels - ensure we have at least 2 points for proper line rendering
+    let chartLabels = labels;
+    if (labels.length === 1) {
+        chartLabels = [labels[0], labels[0]]; // Duplicate the single label
+    }
+    
+    // Prepare datasets
+    const datasets = [{
+        label: 'Time (seconds)',
+        data: times,
+        borderColor: '#007bff',
+        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+        borderWidth: 2,
+        fill: false,
+        pointBackgroundColor: colors,
+        pointBorderColor: colors,
+        pointRadius: 6,
+        pointHoverRadius: 8
+    }];
+    
+    // Add next cut as horizontal line if available
+    if (nextCut && nextCut.time_seconds) {
+        const color = nextCut.beyond_fastest ? '#28a745' : '#dc3545';
+        const dash = nextCut.beyond_fastest ? [] : [5, 5];
+        
+        // Always create a line that spans the full chart width
+        // Use at least 2 points to ensure line rendering, even for single data point
+        const numPoints = Math.max(2, labels.length);
+        const cutLineData = Array(numPoints).fill(nextCut.time_seconds);
+        
+        datasets.push({
+            label: `${nextCut.meet} (${nextCut.age_group}) - ${nextCut.time}`,
+            data: cutLineData,
+            borderColor: color,
+            backgroundColor: 'transparent',
+            borderWidth: 3,
+            borderDash: dash,
+            fill: false,
+            pointRadius: 0,
+            pointHoverRadius: 0,
+            tension: 0, // Ensure straight line
+            spanGaps: true // Connect across gaps
+        });
+    }
+    
+    // Add attendance prediction line if available
+    if (attendanceAnalysis && attendanceAnalysis.predicted_time_seconds) {
+        const numPoints = Math.max(2, labels.length);
+        const predictionLineData = Array(numPoints).fill(attendanceAnalysis.predicted_time_seconds);
+        
+        datasets.push({
+            label: `Predicted Time (${attendanceAnalysis.athlete_attendance.toFixed(1)}% attendance)`,
+            data: predictionLineData,
+            borderColor: '#ffc107', // Yellow/gold color
+            backgroundColor: 'transparent',
+            borderWidth: 3,
+            borderDash: [10, 5], // Different dash pattern
+            fill: false,
+            pointRadius: 0,
+            pointHoverRadius: 0,
+            tension: 0,
+            spanGaps: true
+        });
+    }
+    
+    performanceChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: chartLabels,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    reverse: true, // Lower times are better
+                    min: minY,
+                    max: maxY,
+                    title: {
+                        display: true,
+                        text: 'Time (seconds)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Date'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            if (context.datasetIndex === 0) {
+                                const swim = chartData[context.dataIndex];
+                                return [
+                                    `Time: ${swim.time}`,
+                                    `Type: ${swim.type}`,
+                                    `Meet: ${swim.meet}`
+                                ];
+                            } else {
+                                return context.dataset.label;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function formatDate(dateStr) {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+    });
+}
+
+function formatTime(seconds) {
+    if (seconds < 60) {
+        return `${seconds.toFixed(2)}s`;
+    } else if (seconds < 3600) {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        return `${minutes}:${remainingSeconds.toFixed(2).padStart(5, '0')}`;
+    } else {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const remainingSeconds = seconds % 60;
+        return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toFixed(2).padStart(5, '0')}`;
+    }
+}
+
+// Wellness Chart Functions
+{% if wellness_available %}
+let wellnessChart = null;
+const wellnessMetricsData = JSON.parse(document.getElementById('wellness-metrics-data').textContent);
+const wellnessUserId = JSON.parse(document.getElementById('wellness-user-id').textContent);
+
+// Auto-load wellness data when dropdown changes
+document.getElementById('wellnessMetricSelect').addEventListener('change', function() {
+    const metric = this.value;
+    if (metric) {
+        loadWellnessData(metric);
+    }
+});
+
+// Auto-load the first metric on page load (after other charts are loaded)
+setTimeout(function() {
+    const initialMetric = document.getElementById('wellnessMetricSelect').value;
+    if (initialMetric) {
+        loadWellnessData(initialMetric);
+    }
+}, 500);
+
+function loadWellnessData(metric) {
+    // Show loading state
+    document.getElementById('wellnessLoadingState').style.display = 'block';
+    document.getElementById('wellnessChartSection').style.display = 'none';
+    document.getElementById('wellnessStatisticsSection').style.display = 'none';
+    document.getElementById('wellnessErrorState').style.display = 'none';
+    
+    // Handle skips data differently since it's not from wellness API
+    if (metric === 'skips') {
+        const skipsData = {{ skips_metrics.daily_skips | tojson }};
+        if (skipsData && skipsData.length > 0) {
+            // Calculate statistics for skips data
+            const values = skipsData.map(d => d.running_score);
+            const statistics = {
+                average: values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0,
+                max: values.length > 0 ? Math.max(...values) : 0,
+                min: values.length > 0 ? Math.min(...values) : 0
+            };
+            
+            displayWellnessChart(metric, {
+                statistics: statistics,
+                total_entries: skipsData.length,
+                chart_data: skipsData.map(d => ({
+                    date: d.date,
+                    display_date: d.display_date,
+                    value: d.running_score
+                }))
+            });
+        } else {
+            // Show message if no future skips data
+            document.getElementById('wellnessErrorMessage').textContent = 'No future practice dates available for skips tracking. Skips scoring starts from today forward.';
+            document.getElementById('wellnessErrorState').style.display = 'block';
+        }
+        
+        // Always hide loading state for skips
+        document.getElementById('wellnessLoadingState').style.display = 'none';
+        return;
+    }
+    
+    // Fetch data for other wellness metrics
+    fetch(`/api/wellness_data?metric=${metric}&user_id=${wellnessUserId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            displayWellnessChart(metric, data);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('wellnessErrorMessage').textContent = error.message;
+            document.getElementById('wellnessErrorState').style.display = 'block';
+        })
+        .finally(() => {
+            document.getElementById('wellnessLoadingState').style.display = 'none';
+        });
+}
+
+function displayWellnessChart(metric, data) {
+    const metricInfo = wellnessMetricsData[metric];
+    let metricName = metricInfo.name;
+    
+    // If this is a goal metric and we have the goal text, display it
+    if (metric.includes('goal') && data.goal_text) {
+        metricName = `Goal: "${data.goal_text}"`;
+    }
+    
+    // Update statistics
+    const stats = data.statistics;
+    
+    // Format statistics based on metric type
+    if (metric === 'sleep_hours') {
+        document.getElementById('wellnessAverageValue').textContent = stats.average ? `${stats.average} hrs` : '--';
+        document.getElementById('wellnessMaxValue').textContent = stats.max ? `${stats.max} hrs` : '--';
+        document.getElementById('wellnessMinValue').textContent = stats.min ? `${stats.min} hrs` : '--';
+    } else if (metricInfo.type === 'boolean') {
+        // For goals, show achievement percentage and score range
+        document.getElementById('wellnessAverageValue').textContent = stats.average ? `${stats.average}%` : '--';
+        document.getElementById('wellnessMaxValue').textContent = stats.max !== null ? stats.max : '--';
+        document.getElementById('wellnessMinValue').textContent = stats.min !== null ? stats.min : '--';
+    } else if (metricInfo.type === 'categorical') {
+        const displayMap = {
+            'hydration': ['Poor', 'Fair', 'Good', 'Excellent'],
+            'nutrition': ['Poor', 'Fair', 'Good', 'Excellent'],
+            'soreness': ['None', 'Mild', 'Moderate', 'Severe', 'Extreme']
+        };
+        const labels = displayMap[metric] || [];
+        document.getElementById('wellnessAverageValue').textContent = stats.average ? stats.average.toFixed(1) : '--';
+        document.getElementById('wellnessMaxValue').textContent = stats.max !== null && labels[stats.max] ? labels[stats.max] : '--';
+        document.getElementById('wellnessMinValue').textContent = stats.min !== null && labels[stats.min] ? labels[stats.min] : '--';
+    } else {
+        document.getElementById('wellnessAverageValue').textContent = stats.average ? stats.average.toFixed(1) : '--';
+        document.getElementById('wellnessMaxValue').textContent = stats.max || '--';
+        document.getElementById('wellnessMinValue').textContent = stats.min || '--';
+    }
+    
+    document.getElementById('wellnessTotalEntries').textContent = data.total_entries;
+    
+    // Update chart title with goal text if available
+    document.getElementById('wellnessChartTitle').innerHTML = `<i class="fas fa-chart-area"></i> ${metricName} Over Time`;
+    
+    // Create chart
+    createWellnessChart(metric, metricInfo, data.chart_data, metricName);
+    
+    // Show sections
+    document.getElementById('wellnessStatisticsSection').style.display = 'block';
+    document.getElementById('wellnessChartSection').style.display = 'block';
+}
+
+function createWellnessChart(metric, metricInfo, chartData, metricName) {
+    const ctx = document.getElementById('wellnessChart').getContext('2d');
+    
+    // Destroy existing chart if it exists
+    if (wellnessChart) {
+        wellnessChart.destroy();
+    }
+    
+    // Prepare data
+    const labels = chartData.map(d => d.display_date);
+    const values = chartData.map(d => d.value);
+    
+    // Determine color based on metric type (goals use gold/yellow)
+    let borderColor = 'rgb(75, 192, 192)';
+    let backgroundColor = 'rgba(75, 192, 192, 0.2)';
+    
+    if (metric === 'stress_level') {
+        borderColor = 'rgb(255, 99, 132)';
+        backgroundColor = 'rgba(255, 99, 132, 0.2)';
+    } else if (metric === 'energy_level' || metric === 'motivation') {
+        borderColor = 'rgb(54, 162, 235)';
+        backgroundColor = 'rgba(54, 162, 235, 0.2)';
+    } else if (metric === 'sleep_hours' || metric === 'sleep_quality') {
+        borderColor = 'rgb(153, 102, 255)';
+        backgroundColor = 'rgba(153, 102, 255, 0.2)';
+    } else if (metric.includes('goal')) {
+        // Similar to attendance chart colors
+        borderColor = 'rgb(255, 193, 7)';
+        backgroundColor = 'rgba(255, 193, 7, 0.2)';
+    }
+    
+    // Create chart configuration
+    const config = {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: metricInfo.name,
+                data: values,
+                borderColor: borderColor,
+                backgroundColor: backgroundColor,
+                tension: 0.3,
+                fill: true,
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        font: { size: 11 }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const dataIndex = context.dataIndex;
+                            const dayData = chartData[dataIndex];
+                            return `${metricInfo.name}: ${dayData.display_value}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: metric.includes('goal') ? false : true,
+                    title: {
+                        display: true,
+                        text: metric.includes('goal') ? 'Running Score' : metricInfo.name,
+                        font: { size: 11 }
+                    },
+                    ticks: {
+                        font: { size: 10 },
+                        callback: function(value) {
+                            // Custom tick labels for categorical data
+                            if (metric === 'hydration' || metric === 'nutrition') {
+                                const labels = ['', 'Poor', 'Fair', 'Good', 'Excellent'];
+                                return labels[value] || value;
+                            } else if (metric === 'soreness') {
+                                const labels = ['None', 'Mild', 'Moderate', 'Severe', 'Extreme'];
+                                return labels[value] || value;
+                            }
+                            // For goals, just show the numeric score
+                            return value;
+                        }
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Date',
+                        font: { size: 11 }
+                    },
+                    ticks: {
+                        font: { size: 9 },
+                        maxTicksLimit: 8
+                    }
+                }
+            }
+        }
+    };
+    
+    wellnessChart = new Chart(ctx, config);
+}
+
+// Goals Tracking Functions
+let goalCharts = {};
+
+// Load goals data on page load
+setTimeout(function() {
+    loadGoalsData();
+}, 600);
+
+function loadGoalsData() {
+    document.getElementById('goalsLoadingState').style.display = 'block';
+    document.getElementById('goalsContainer').style.display = 'none';
+    document.getElementById('goalsErrorState').style.display = 'none';
+    
+    fetch(`/api/goals_data?user_id=${wellnessUserId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            displayGoals(data.goals);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('goalsErrorMessage').textContent = 'No goal data available yet.';
+            document.getElementById('goalsErrorState').style.display = 'block';
+        })
+        .finally(() => {
+            document.getElementById('goalsLoadingState').style.display = 'none';
+        });
+}
+
+function displayGoals(goals) {
+    const container = document.getElementById('goalsContainer');
+    container.innerHTML = '';
+    
+    if (goals.length === 0) {
+        container.innerHTML = '<p class="text-muted text-center">No active goals set.</p>';
+        container.style.display = 'block';
+        return;
+    }
+    
+    // Create a row for the goals
+    const row = document.createElement('div');
+    row.className = 'row';
+    
+    goals.forEach((goal, index) => {
+        const stats = goal.statistics;
+        
+        // Create column for each goal
+        const col = document.createElement('div');
+        col.className = goals.length === 1 ? 'col-12' : 'col-md-6';
+        
+        col.innerHTML = `
+            <div class="card border-warning mb-3">
+                <div class="card-header bg-warning bg-opacity-10">
+                    <h6 class="mb-0"><i class="fas fa-flag-checkered"></i> ${goal.goal_text}</h6>
+                </div>
+                <div class="card-body">
+                    <!-- Statistics -->
+                    <div class="row text-center mb-3">
+                        <div class="col-4">
+                            <h4 class="text-primary mb-0">${stats.current_score}</h4>
+                            <small class="text-muted">Current Score</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="text-success mb-0">${stats.highest_score}</h4>
+                            <small class="text-muted">Highest Score</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="text-warning mb-0">${stats.current_streak}</h4>
+                            <small class="text-muted">Current Streak</small>
+                        </div>
+                    </div>
+                    
+                    <!-- Chart -->
+                    <div style="height: 200px; position: relative;">
+                        <canvas id="goalChart${index}"></canvas>
+                    </div>
+                    
+                    <!-- Additional info -->
+                    <div class="text-center mt-2">
+                        <small class="text-muted">
+                            <i class="fas fa-chart-line"></i> ${stats.achievement_percentage}% achieved over ${stats.total_entries} days
+                        </small>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        row.appendChild(col);
+    });
+    
+    container.appendChild(row);
+    container.style.display = 'block';
+    
+    // Create charts for each goal
+    goals.forEach((goal, index) => {
+        createGoalChart(index, goal);
+    });
+}
+
+function createGoalChart(index, goalData) {
+    const ctx = document.getElementById(`goalChart${index}`).getContext('2d');
+    
+    // Destroy existing chart if it exists
+    if (goalCharts[`goal${index}`]) {
+        goalCharts[`goal${index}`].destroy();
+    }
+    
+    const labels = goalData.chart_data.map(d => d.display_date);
+    const values = goalData.chart_data.map(d => d.value);
+    const achievements = goalData.chart_data.map(d => d.achieved);
+    
+    // Color points based on achievement
+    const pointColors = achievements.map(achieved => 
+        achieved ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)'
+    );
+    
+    goalCharts[`goal${index}`] = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Running Score',
+                data: values,
+                borderColor: 'rgb(255, 193, 7)',
+                backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                tension: 0.3,
+                fill: true,
+                pointBackgroundColor: pointColors,
+                pointBorderColor: pointColors,
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const dataIndex = context.dataIndex;
+                            const dayData = goalData.chart_data[dataIndex];
+                            return dayData.display_value;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    title: {
+                        display: true,
+                        text: 'Score',
+                        font: { size: 10 }
+                    },
+                    ticks: {
+                        font: { size: 9 }
+                    }
+                },
+                x: {
+                    ticks: {
+                        font: { size: 8 },
+                        maxTicksLimit: 8
+                    }
+                }
+            }
+        }
+    });
+}
+{% endif %}
+</script>
+
+{% endblock %}

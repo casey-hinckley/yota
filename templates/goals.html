@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="text-center mb-0">My Goals</h2>
+                <p class="text-center text-muted mb-0">Set your personal goals</p>
+            </div>
+            <div class="card-body">
+                <!-- Set Goals Section -->
+                <div class="row">
+                    <div class="col-12">
+                        <h3>Set Goals</h3>
+                        <p class="text-muted">Your goals will appear as yes/no questions in the wellness questionnaire.</p>
+                        <form method="POST" id="setGoalsForm">
+                            <input type="hidden" name="action" value="set_goals">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="goal1_text" class="form-label">Goal 1</label>
+                                    <textarea class="form-control" id="goal1_text" name="goal1_text" rows="3" placeholder="Enter your first goal...">{{ goals.goal1 if goals.goal1 else '' }}</textarea>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="goal2_text" class="form-label">Goal 2</label>
+                                    <textarea class="form-control" id="goal2_text" name="goal2_text" rows="3" placeholder="Enter your second goal...">{{ goals.goal2 if goals.goal2 else '' }}</textarea>
+                                </div>
+                            </div>
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <button type="submit" class="btn btn-primary">Set Goals</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

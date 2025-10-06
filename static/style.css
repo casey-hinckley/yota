@@ -27,4 +27,48 @@ body {
 .badge {
     font-size: 0.9em;
     padding: 0.5em 0.8em;
+}
+
+/* Wellness Questionnaire specific styles */
+.wellness-form .card-header {
+    border-radius: 0.5rem 0.5rem 0 0 !important;
+}
+
+.wellness-form .form-select-lg {
+    padding: 0.75rem 1rem;
+    font-size: 1.1rem;
+}
+
+.wellness-form .form-control-lg {
+    padding: 0.75rem 1rem;
+    font-size: 1.1rem;
+}
+
+.wellness-form .form-label.fw-semibold {
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
+}
+
+.wellness-form .card.border-primary {
+    transition: all 0.3s ease;
+}
+
+.wellness-form .card.border-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,123,255,0.2);
+}
+
+.wellness-form h4.text-primary {
+    border-bottom: 2px solid #e9ecef;
+    padding-bottom: 0.5rem;
+}
+
+.wellness-form .form-check-lg .form-check-input {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.wellness-form .form-check-lg .form-check-label {
+    font-size: 1.1rem;
+    padding-left: 0.5rem;
 } 
