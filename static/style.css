@@ -1,5 +1,53 @@
+:root {
+    --primary-purple: #5D3A9B;
+    --primary-purple-hover: #4a2f7d;
+    --primary-purple-light: rgba(93, 58, 155, 0.2);
+}
+
 body {
     background-color: #f8f9fa;
+}
+
+/* Override Bootstrap primary color to purple */
+.bg-primary {
+    background-color: var(--primary-purple) !important;
+}
+
+.text-primary {
+    color: var(--primary-purple) !important;
+}
+
+.btn-primary {
+    background-color: var(--primary-purple);
+    border-color: var(--primary-purple);
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+    background-color: var(--primary-purple-hover);
+    border-color: var(--primary-purple-hover);
+}
+
+.border-primary {
+    border-color: var(--primary-purple) !important;
+}
+
+.alert-primary {
+    background-color: var(--primary-purple-light);
+    border-color: var(--primary-purple);
+    color: var(--primary-purple-hover);
+}
+
+.badge.bg-primary {
+    background-color: var(--primary-purple) !important;
+}
+
+a {
+    color: var(--primary-purple);
+}
+
+a:hover {
+    color: var(--primary-purple-hover);
 }
 
 .card {
@@ -55,7 +103,7 @@ body {
 
 .wellness-form .card.border-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,123,255,0.2);
+    box-shadow: 0 4px 8px var(--primary-purple-light);
 }
 
 .wellness-form h4.text-primary {
