@@ -30,8 +30,11 @@ def create_app():
         app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
             'connect_args': {
                 'sslmode': 'require',
-                'connect_timeout': 10
-            }
+                'connect_timeout': 10,
+                'options': '-c statement_timeout=30000'
+            },
+            'pool_pre_ping': True,  # Verify connections before using them
+            'pool_recycle': 300,  # Recycle connections after 5 minutes
         }
         print(f"🔗 Connecting to Supabase: {SUPABASE_DB_HOST}")
     else:
