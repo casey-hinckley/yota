@@ -151,3 +151,4 @@ if __name__ == '__main__':
     # Uncomment and modify this line to generate data:
     # generate_wellness_data(user_id=1, num_days=30)
 
+

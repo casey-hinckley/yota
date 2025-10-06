@@ -1,6 +1,6 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, jsonify
 from flask_login import login_required, current_user
-from models import db, Athlete, Attendance, User, WellnessEntry
+from models import db, Athlete, Attendance, User, WellnessEntry, SwimTime
 from datetime import datetime, date
 from sqlalchemy import func, distinct
 from utils import (
@@ -11,6 +11,7 @@ from utils import (
 athletes_bp = Blueprint('athletes', __name__)
 
 @athletes_bp.route('/')
+@login_required
 def index():
     athletes = Athlete.query.all()
     return render_template('index.html', athletes=athletes)
@@ -34,6 +35,7 @@ def my_metrics():
         return redirect(url_for('goals.goals'))
 
 @athletes_bp.route('/athlete/<int:athlete_id>')
+@login_required
 def athlete_detail(athlete_id):
     athlete = Athlete.query.get_or_404(athlete_id)
     
@@ -47,10 +49,26 @@ def athlete_detail(athlete_id):
         meets = get_meets_from_standards()
         
         # Check if athlete has a linked user account with wellness data
+        # Try multiple matching strategies including preferred name
+        linked_user = None
+        
+        # Strategy 1: Exact match with full name
         linked_user = User.query.filter(
-            (User.first_name + ' ' + User.last_name == athlete.name) |
-            (User.username == athlete.name.lower().replace(' ', ''))
+            User.first_name + ' ' + User.last_name == athlete.name
         ).first()
+        
+        # Strategy 2: Match using preferred name if available
+        if not linked_user and athlete.preferred_name:
+            preferred_full_name = f"{athlete.preferred_name} {athlete.name.split(' ')[-1] if ' ' in athlete.name else ''}"
+            linked_user = User.query.filter(
+                User.first_name + ' ' + User.last_name == preferred_full_name.strip()
+            ).first()
+        
+        # Strategy 3: Username match (fallback)
+        if not linked_user:
+            linked_user = User.query.filter(
+                User.username == athlete.name.lower().replace(' ', '')
+            ).first()
         
         wellness_available = False
         wellness_user_id = None
@@ -213,5 +231,110 @@ def calculate_skips_metrics(athlete):
         'current_skips_score': round(running_skips_score, 1),
         'daily_skips': daily_skips
     }
+
+@athletes_bp.route('/api/athlete/<int:athlete_id>', methods=['PUT'])
+@login_required
+def update_athlete(athlete_id):
+    """Update athlete information - coaches only"""
+    if current_user.user_type != 'coach':
+        return jsonify({'error': 'Access denied. Coaches only.'}), 403
+    
+    athlete = Athlete.query.get_or_404(athlete_id)
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+    
+    try:
+        # Update fields if provided
+        if 'name' in data:
+            athlete.name = data['name'].strip()
+        
+        if 'preferred_name' in data:
+            preferred = data['preferred_name'].strip() if data['preferred_name'] else None
+            athlete.preferred_name = preferred
+        
+        if 'age' in data:
+            age = data['age']
+            athlete.age = int(age) if age and age != '' else None
+        
+        if 'gender' in data:
+            gender = data['gender'].strip() if data['gender'] else None
+            athlete.gender = gender
+        
+        if 'roster' in data:
+            roster = data['roster'].strip() if data['roster'] else None
+            athlete.roster = roster
+        
+        if 'birthday' in data:
+            birthday = data['birthday']
+            if birthday and birthday != '':
+                try:
+                    athlete.birthday = datetime.strptime(birthday, '%Y-%m-%d').date()
+                except ValueError:
+                    return jsonify({'error': 'Invalid birthday format. Use YYYY-MM-DD'}), 400
+            else:
+                athlete.birthday = None
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Athlete updated successfully',
+            'athlete': {
+                'id': athlete.id,
+                'name': athlete.name,
+                'preferred_name': athlete.preferred_name,
+                'age': athlete.age,
+                'gender': athlete.gender,
+                'roster': athlete.roster,
+                'birthday': athlete.birthday.strftime('%Y-%m-%d') if athlete.birthday else None
+            }
+        })
+        
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({'error': f'Invalid data: {str(e)}'}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+@athletes_bp.route('/api/athlete/<int:athlete_id>', methods=['DELETE'])
+@login_required
+def delete_athlete(athlete_id):
+    """Delete an athlete - coaches only"""
+    if current_user.user_type != 'coach':
+        return jsonify({'error': 'Access denied. Coaches only.'}), 403
+    
+    athlete = Athlete.query.get_or_404(athlete_id)
+    
+    try:
+        # Get counts of related data for confirmation
+        attendance_count = Attendance.query.filter_by(athlete_id=athlete_id).count()
+        swim_times_count = SwimTime.query.filter_by(athlete_id=athlete_id).count()
+        
+        # Delete all related records first
+        # Delete attendance records
+        Attendance.query.filter_by(athlete_id=athlete_id).delete()
+        
+        # Delete swim time records
+        SwimTime.query.filter_by(athlete_id=athlete_id).delete()
+        
+        # Delete the athlete
+        db.session.delete(athlete)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Athlete {athlete.name} deleted successfully',
+            'deleted_data': {
+                'attendance_records': attendance_count,
+                'swim_times': swim_times_count
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
 
 # Removed add_metric route since Metric model doesn't exist

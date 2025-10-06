@@ -11,11 +11,27 @@ def login():
     if current_user.is_authenticated:
         # Redirect athletes to their own metrics page, coaches to athletes index
         if current_user.user_type != 'coach':
-            # Find the athlete record for this user
+            # Find the athlete record for this user using improved matching
+            athlete = None
+            
+            # Strategy 1: Exact match with full name
             athlete = Athlete.query.filter(
-                (Athlete.name == current_user.get_full_name()) |
-                (Athlete.name.like(f'%{current_user.first_name}%{current_user.last_name}%'))
+                Athlete.name == current_user.get_full_name()
             ).first()
+            
+            # Strategy 2: Try with preferred name if exact match fails
+            if not athlete:
+                # Look for athletes where preferred name matches user's first name
+                athlete = Athlete.query.filter(
+                    Athlete.preferred_name == current_user.first_name,
+                    Athlete.name.like(f'%{current_user.last_name}%')
+                ).first()
+            
+            # Strategy 3: Partial match (fallback)
+            if not athlete:
+                athlete = Athlete.query.filter(
+                    Athlete.name.like(f'%{current_user.first_name}%{current_user.last_name}%')
+                ).first()
             
             if athlete:
                 return redirect(url_for('athletes.athlete_detail', athlete_id=athlete.id))
@@ -47,11 +63,26 @@ def login():
                 if not next_page or not next_page.startswith('/'):
                     # Redirect athletes to their own metrics page, coaches to athletes index
                     if user.user_type != 'coach':
-                        # Find the athlete record for this user
+                        # Find the athlete record for this user using improved matching
+                        athlete = None
+                        
+                        # Strategy 1: Exact match with full name
                         athlete = Athlete.query.filter(
-                            (Athlete.name == user.get_full_name()) |
-                            (Athlete.name.like(f'%{user.first_name}%{user.last_name}%'))
+                            Athlete.name == user.get_full_name()
                         ).first()
+                        
+                        # Strategy 2: Try with preferred name if exact match fails
+                        if not athlete:
+                            athlete = Athlete.query.filter(
+                                Athlete.preferred_name == user.first_name,
+                                Athlete.name.like(f'%{user.last_name}%')
+                            ).first()
+                        
+                        # Strategy 3: Partial match (fallback)
+                        if not athlete:
+                            athlete = Athlete.query.filter(
+                                Athlete.name.like(f'%{user.first_name}%{user.last_name}%')
+                            ).first()
                         
                         if athlete:
                             next_page = url_for('athletes.athlete_detail', athlete_id=athlete.id)

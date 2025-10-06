@@ -1,4 +1,5 @@
 from flask import Blueprint, render_template, request, jsonify, current_app
+from flask_login import login_required
 from models import db, Athlete, SwimTime
 from utils import (
     get_athletes_from_data, get_events_from_data, get_courses_from_data,
@@ -11,6 +12,7 @@ import pandas as pd
 swim_analysis_bp = Blueprint('swim_analysis', __name__)
 
 @swim_analysis_bp.route('/swim_analysis')
+@login_required
 def swim_analysis():
     """Main swim analysis page"""
     with current_app.app_context():
@@ -26,6 +28,7 @@ def swim_analysis():
                          meets=meets)
 
 @swim_analysis_bp.route('/api/swim_data')
+@login_required
 def get_swim_data():
     """API endpoint to get swim data for selected athlete, course, and event"""
     athlete_id = request.args.get('athlete_id')

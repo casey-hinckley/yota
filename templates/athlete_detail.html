@@ -16,18 +16,98 @@
 
         <div class="card">
             <div class="card-body">
-                <h5 class="card-title">Athlete Information</h5>
-                <p class="card-text">
-                    <strong>Name:</strong> {{ athlete.name }}<br>
-                    <strong>ID:</strong> {{ athlete.id }}<br>
-                    <strong>Age:</strong> {{ athlete.age or 'N/A' }}{% if not athlete.age %} <span class="badge bg-warning text-dark">Required for swim analysis</span>{% endif %}<br>
-                    <strong>Gender:</strong> {{ athlete.gender or 'N/A' }}{% if not athlete.gender %} <span class="badge bg-warning text-dark">Required for swim analysis</span>{% endif %}<br>
-                    <strong>Birthday:</strong> {{ athlete.birthday.strftime('%B %d, %Y') if athlete.birthday else 'N/A' }}<br>
-                    <strong>Roster:</strong> {{ athlete.roster or 'No Roster Assigned' }}
-                </p>
-                {% if not athlete.age or not athlete.gender %}
-                <div class="alert alert-warning mb-0">
-                    <i class="fas fa-exclamation-triangle"></i> <strong>Note:</strong> Age and gender information is required to show time standards and cuts in swim analysis. Please update the athlete's profile.
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="card-title mb-0">Athlete Information</h5>
+                    {% if current_user.user_type == 'coach' %}
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="editAthleteBtn">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button type="button" class="btn btn-outline-danger btn-sm" id="deleteAthleteBtn">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div id="athleteInfoDisplay">
+                    <p class="card-text">
+                        <strong>Name:</strong> <span id="athleteName">{{ athlete.name }}</span><br>
+                        <strong>ID:</strong> {{ athlete.id }}<br>
+                        <strong>Age:</strong> <span id="athleteAge">{{ athlete.age or 'N/A' }}</span>{% if not athlete.age %} <span class="badge bg-warning text-dark">Required for swim analysis</span>{% endif %}<br>
+                        <strong>Gender:</strong> <span id="athleteGender">{{ athlete.gender or 'N/A' }}</span>{% if not athlete.gender %} <span class="badge bg-warning text-dark">Required for swim analysis</span>{% endif %}<br>
+                        <strong>Birthday:</strong> <span id="athleteBirthday">{{ athlete.birthday.strftime('%B %d, %Y') if athlete.birthday else 'N/A' }}</span><br>
+                        <strong>Preferred Name:</strong> <span id="athletePreferredName">{{ athlete.preferred_name or 'N/A' }}</span><br>
+                        <strong>Roster:</strong> <span id="athleteRoster">{{ athlete.roster or 'No Roster Assigned' }}</span>
+                    </p>
+                    {% if not athlete.age or not athlete.gender %}
+                    <div class="alert alert-warning mb-0">
+                        <i class="fas fa-exclamation-triangle"></i> <strong>Note:</strong> Age and gender information is required to show time standards and cuts in swim analysis. Please update the athlete's profile.
+                    </div>
+                    {% endif %}
+                </div>
+                
+                {% if current_user.user_type == 'coach' %}
+                <div id="athleteInfoEdit" style="display: none;">
+                    <form id="athleteEditForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="editName" class="form-label">Name</label>
+                                    <input type="text" class="form-control" id="editName" value="{{ athlete.name }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="editPreferredName" class="form-label">Preferred Name</label>
+                                    <input type="text" class="form-control" id="editPreferredName" value="{{ athlete.preferred_name or '' }}" placeholder="Nickname or preferred first name">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="editAge" class="form-label">Age</label>
+                                    <input type="number" class="form-control" id="editAge" value="{{ athlete.age or '' }}" min="5" max="25">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="editGender" class="form-label">Gender</label>
+                                    <select class="form-control" id="editGender">
+                                        <option value="">Select Gender</option>
+                                        <option value="Male" {% if athlete.gender == 'Male' %}selected{% endif %}>Male</option>
+                                        <option value="Female" {% if athlete.gender == 'Female' %}selected{% endif %}>Female</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="editBirthday" class="form-label">Birthday</label>
+                                    <input type="date" class="form-control" id="editBirthday" value="{{ athlete.birthday.strftime('%Y-%m-%d') if athlete.birthday else '' }}">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="mb-3">
+                                    <label for="editRoster" class="form-label">Roster</label>
+                                    <input type="text" class="form-control" id="editRoster" value="{{ athlete.roster or '' }}" placeholder="Practice group or roster">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-save"></i> Save Changes
+                            </button>
+                            <button type="button" class="btn btn-secondary" id="cancelEditBtn">
+                                <i class="fas fa-times"></i> Cancel
+                            </button>
+                        </div>
+                    </form>
                 </div>
                 {% endif %}
             </div>
@@ -1314,6 +1394,225 @@ function createGoalChart(index, goalData) {
             }
         }
     });
+}
+{% endif %}
+
+// Athlete editing and deletion functionality (for coaches only)
+{% if current_user.user_type == 'coach' %}
+document.addEventListener('DOMContentLoaded', function() {
+    const editBtn = document.getElementById('editAthleteBtn');
+    const deleteBtn = document.getElementById('deleteAthleteBtn');
+    const cancelBtn = document.getElementById('cancelEditBtn');
+    const editForm = document.getElementById('athleteEditForm');
+    const displayDiv = document.getElementById('athleteInfoDisplay');
+    const editDiv = document.getElementById('athleteInfoEdit');
+    
+    if (editBtn && cancelBtn && editForm) {
+        // Show edit form
+        editBtn.addEventListener('click', function() {
+            displayDiv.style.display = 'none';
+            editDiv.style.display = 'block';
+            editBtn.style.display = 'none';
+        });
+        
+        // Cancel editing
+        cancelBtn.addEventListener('click', function() {
+            editDiv.style.display = 'none';
+            displayDiv.style.display = 'block';
+            editBtn.style.display = 'inline-block';
+            // Reset form to original values
+            location.reload(); // Simple way to reset - could be optimized
+        });
+        
+        // Handle form submission
+        editForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = {
+                name: document.getElementById('editName').value,
+                preferred_name: document.getElementById('editPreferredName').value,
+                age: document.getElementById('editAge').value,
+                gender: document.getElementById('editGender').value,
+                birthday: document.getElementById('editBirthday').value,
+                roster: document.getElementById('editRoster').value
+            };
+            
+            // Show loading state
+            const submitBtn = editForm.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            submitBtn.disabled = true;
+            
+            // Send update request
+            fetch(`/api/athlete/{{ athlete.id }}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update the display values
+                    document.getElementById('athleteName').textContent = data.athlete.name;
+                    document.getElementById('athleteAge').textContent = data.athlete.age || 'N/A';
+                    document.getElementById('athleteGender').textContent = data.athlete.gender || 'N/A';
+                    document.getElementById('athletePreferredName').textContent = data.athlete.preferred_name || 'N/A';
+                    document.getElementById('athleteRoster').textContent = data.athlete.roster || 'No Roster Assigned';
+                    
+                    // Format birthday for display
+                    if (data.athlete.birthday) {
+                        const birthday = new Date(data.athlete.birthday);
+                        document.getElementById('athleteBirthday').textContent = birthday.toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                        });
+                    } else {
+                        document.getElementById('athleteBirthday').textContent = 'N/A';
+                    }
+                    
+                    // Update page title
+                    document.querySelector('h1').textContent = data.athlete.name + "'s Profile";
+                    
+                    // Show success message
+                    showAlert('Athlete information updated successfully!', 'success');
+                    
+                    // Hide edit form
+                    editDiv.style.display = 'none';
+                    displayDiv.style.display = 'block';
+                    editBtn.style.display = 'inline-block';
+                    
+                    // Update warning badges if age/gender are now present
+                    updateWarningBadges(data.athlete.age, data.athlete.gender);
+                    
+                } else {
+                    showAlert(data.error || 'Failed to update athlete information', 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('An error occurred while updating athlete information', 'danger');
+            })
+            .finally(() => {
+                // Reset button state
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            });
+        });
+    }
+    
+    // Handle delete button click
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', function() {
+            const athleteName = document.getElementById('athleteName').textContent;
+            
+            if (confirm(`Are you sure you want to delete ${athleteName}?\n\nThis will permanently delete all data for this athlete.`)) {
+                // Show loading state
+                deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+                deleteBtn.disabled = true;
+                
+                // Send delete request
+                fetch(`/api/athlete/{{ athlete.id }}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Show success message and redirect
+                        showAlert('Athlete deleted successfully! Redirecting...', 'success');
+                        setTimeout(() => {
+                            window.location.href = '/';
+                        }, 2000);
+                    } else {
+                        showAlert(data.error || 'Failed to delete athlete', 'danger');
+                        // Reset button
+                        deleteBtn.innerHTML = '<i class="fas fa-trash"></i> Delete';
+                        deleteBtn.disabled = false;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showAlert('An error occurred while deleting the athlete', 'danger');
+                    // Reset button
+                    deleteBtn.innerHTML = '<i class="fas fa-trash"></i> Delete';
+                    deleteBtn.disabled = false;
+                });
+            }
+        });
+    }
+});
+
+function updateWarningBadges(age, gender) {
+    // Remove existing warning badges
+    const ageSpan = document.getElementById('athleteAge');
+    const genderSpan = document.getElementById('athleteGender');
+    
+    // Remove any existing badges
+    const ageBadges = ageSpan.parentNode.querySelectorAll('.badge');
+    ageBadges.forEach(badge => badge.remove());
+    
+    const genderBadges = genderSpan.parentNode.querySelectorAll('.badge');
+    genderBadges.forEach(badge => badge.remove());
+    
+    // Add new badges if needed
+    if (!age) {
+        const ageBadge = document.createElement('span');
+        ageBadge.className = 'badge bg-warning text-dark';
+        ageBadge.textContent = 'Required for swim analysis';
+        ageSpan.parentNode.appendChild(ageBadge);
+    }
+    
+    if (!gender) {
+        const genderBadge = document.createElement('span');
+        genderBadge.className = 'badge bg-warning text-dark';
+        genderBadge.textContent = 'Required for swim analysis';
+        genderSpan.parentNode.appendChild(genderBadge);
+    }
+    
+    // Update or remove the warning alert
+    const warningAlert = document.querySelector('.alert.alert-warning');
+    if (age && gender) {
+        if (warningAlert) {
+            warningAlert.remove();
+        }
+    } else {
+        if (!warningAlert) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-warning mb-0';
+            alertDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> <strong>Note:</strong> Age and gender information is required to show time standards and cuts in swim analysis. Please update the athlete\'s profile.';
+            document.querySelector('#athleteInfoDisplay .card-text').parentNode.appendChild(alertDiv);
+        }
+    }
+}
+
+function showAlert(message, type) {
+    // Remove existing alerts
+    const existingAlerts = document.querySelectorAll('.alert:not(.alert-warning)');
+    existingAlerts.forEach(alert => alert.remove());
+    
+    // Create new alert
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    // Insert at the top of the athlete info card
+    const cardBody = document.querySelector('.card-body');
+    cardBody.insertBefore(alertDiv, cardBody.firstChild);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
 }
 {% endif %}
 </script>

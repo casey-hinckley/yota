@@ -11,6 +11,8 @@ class User(UserMixin, db.Model):
     last_name = db.Column(db.String(50), nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
     user_type = db.Column(db.String(20), nullable=False, default='coach')  # 'coach', 'admin', etc.
+    age = db.Column(db.Integer)
+    gender = db.Column(db.String(10))  # 'Male' or 'Female'
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
@@ -33,6 +35,7 @@ class User(UserMixin, db.Model):
 class Athlete(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
+    preferred_name = db.Column(db.String(50))  # Nickname/preferred first name for attendance
     age = db.Column(db.Integer)
     birthday = db.Column(db.Date)
     roster = db.Column(db.String(100))
