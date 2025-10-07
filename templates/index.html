@@ -84,7 +84,7 @@
                                     {% if athlete.roster %}<br><small class="text-muted">Roster: {{ athlete.roster }}</small>{% endif %}
                                 </p>
                                 <div class="d-flex gap-2">
-                                    <a href="{{ url_for('athletes.athlete_detail', athlete_id=athlete.id) }}" class="btn btn-primary btn-sm">
+                                    <a href="{% if current_roster and current_search %}{{ url_for('athletes.athlete_detail', athlete_id=athlete.id, roster=current_roster, search=current_search) }}{% elif current_roster %}{{ url_for('athletes.athlete_detail', athlete_id=athlete.id, roster=current_roster) }}{% elif current_search %}{{ url_for('athletes.athlete_detail', athlete_id=athlete.id, search=current_search) }}{% else %}{{ url_for('athletes.athlete_detail', athlete_id=athlete.id) }}{% endif %}" class="btn btn-primary btn-sm">
                                         <i class="fas fa-eye"></i> View Details
                                     </a>
                                     {% if current_user.user_type == 'coach' %}

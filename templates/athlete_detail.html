@@ -5,11 +5,9 @@
     <div class="col-md-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div class="d-flex align-items-center">
-                {% if current_user.user_type != 'coach' %}
-                <a href="{{ url_for('athletes.index') }}" class="btn btn-outline-secondary me-3">
+                <a href="{% if current_roster and current_search %}{{ url_for('athletes.index', roster=current_roster, search=current_search) }}{% elif current_roster %}{{ url_for('athletes.index', roster=current_roster) }}{% elif current_search %}{{ url_for('athletes.index', search=current_search) }}{% else %}{{ url_for('athletes.index') }}{% endif %}" class="btn btn-outline-secondary me-3">
                     <i class="fas fa-arrow-left"></i> Back to Athletes
                 </a>
-                {% endif %}
                 <h1>{{ athlete.name }}'s Profile</h1>
             </div>
         </div>

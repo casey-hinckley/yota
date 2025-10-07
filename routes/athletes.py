@@ -279,6 +279,10 @@ def my_metrics():
 def athlete_detail(athlete_id):
     athlete = Athlete.query.get_or_404(athlete_id)
     
+    # Get filter parameters to preserve when returning to athletes list
+    roster_filter = request.args.get('roster', '')
+    search_query = request.args.get('search', '')
+    
     with current_app.app_context():
         # Calculate attendance metrics
         attendance_metrics = calculate_attendance_metrics(athlete)
@@ -347,7 +351,9 @@ def athlete_detail(athlete_id):
                          meets=meets,
                          wellness_available=wellness_available,
                          wellness_user_id=wellness_user_id,
-                         wellness_metrics=wellness_metrics)
+                         wellness_metrics=wellness_metrics,
+                         current_roster=roster_filter,
+                         current_search=search_query)
 
 def calculate_attendance_metrics(athlete):
     """Calculate attendance percentage and daily data for an athlete"""
