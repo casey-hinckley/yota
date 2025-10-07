@@ -1,0 +1,520 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="mb-0">📊 Coach Analytics Dashboard</h1>
+            <a href="{{ url_for('athletes.index') }}" class="btn btn-outline-primary">
+                <i class="fas fa-users me-2"></i>View All Athletes
+            </a>
+        </div>
+        
+        <!-- Main Content Layout -->
+        <div class="row">
+            <!-- Left Sidebar - Group Selection -->
+            <div class="col-lg-3">
+                <div class="card sticky-top" style="top: 20px;">
+                    <div class="card-header">
+                        <h6 class="mb-0">🎯 Group Selection</h6>
+                    </div>
+                    <div class="card-body">
+                        <form method="GET" id="groupFilterForm">
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <small class="text-muted">Select Groups:</small>
+                                    <div class="btn-group btn-group-sm">
+                                        <button type="button" class="btn btn-outline-primary btn-sm" id="selectAllGroups">
+                                            All
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" id="clearAllGroups">
+                                            None
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- Group List -->
+                                <div class="list-group list-group-flush">
+                                    {% for roster in rosters %}
+                                        <label class="list-group-item list-group-item-action d-flex align-items-center" style="cursor: pointer;">
+                                            <input type="checkbox" class="form-check-input me-2 group-checkbox" 
+                                                   name="groups" value="{{ roster }}" id="group_{{ loop.index }}"
+                                                   {% if roster in selected_groups %}checked{% endif %}>
+                                            <i class="fas fa-users me-2 text-primary"></i>
+                                            <span class="flex-grow-1">{{ roster }}</span>
+                                            {% if roster in selected_groups %}
+                                                <i class="fas fa-check-circle text-success"></i>
+                                            {% endif %}
+                                        </label>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            
+                            <div class="d-grid">
+                                <button type="button" class="btn btn-outline-secondary" id="refreshData">
+                                    <i class="fas fa-sync-alt me-1"></i>Refresh Data
+                                </button>
+                            </div>
+                            
+                            <div class="mt-2 text-center">
+                                <small class="text-muted">
+                                    <span id="selectedCount">{{ selected_groups|length }}</span> group{{ 's' if selected_groups|length != 1 else '' }} selected
+                                </small>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Content - Charts and Data -->
+            <div class="col-lg-9">
+                <!-- Combined Metrics Overview -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h3 class="text-primary">{{ combined_metrics.total_athletes }}</h3>
+                                <p class="card-text">Total Athletes</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h3 class="text-success">{{ combined_metrics.attendance_metrics.overall_percentage }}%</h3>
+                                <p class="card-text">Avg Attendance</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h3 class="text-warning">{{ combined_metrics.skips_metrics.overall_average }}</h3>
+                                <p class="card-text">Avg Skips/Day</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h3 class="text-info">{{ combined_metrics.attendance_metrics.total_practice_days }}</h3>
+                                <p class="card-text">Practice Days</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Charts Section -->
+                <div class="row">
+                    <!-- Attendance Chart -->
+                    <div class="col-lg-6 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">📈 Attendance Trends</h5>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="attendanceChart" height="300"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Skips Chart -->
+                    <div class="col-lg-6 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">🎯 Skips Trends</h5>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="skipsChart" height="300"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Wellness Metrics -->
+                <div class="row">
+                    <div class="col-12 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">💪 Wellness Metrics</h5>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="wellnessChart" height="300"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Group Comparison Table -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">📊 Group Comparison</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-striped" id="comparisonTable">
+                                        <thead>
+                                            <tr>
+                                                <th>Group</th>
+                                                <th>Athletes</th>
+                                                <th>Avg Attendance</th>
+                                                <th>Avg Skips/Day</th>
+                                                <th>Energy Level</th>
+                                                <th>Sleep Quality</th>
+                                                <th>Stress Level</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for group, metrics in group_metrics.items() %}
+                                            <tr>
+                                                <td><strong>{{ group }}</strong></td>
+                                                <td>{{ metrics.total_athletes }}</td>
+                                                <td>{{ metrics.attendance_metrics.overall_percentage }}%</td>
+                                                <td>{{ metrics.skips_metrics.overall_average }}</td>
+                                                <td>
+                                                    {% if metrics.wellness_metrics.energy_level %}
+                                                        {{ "%.1f"|format(metrics.wellness_metrics.energy_level.average) }}/10
+                                                    {% else %}
+                                                        N/A
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if metrics.wellness_metrics.sleep_quality %}
+                                                        {{ "%.1f"|format(metrics.wellness_metrics.sleep_quality.average) }}/5
+                                                    {% else %}
+                                                        N/A
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if metrics.wellness_metrics.stress_level %}
+                                                        {{ "%.1f"|format(metrics.wellness_metrics.stress_level.average) }}/10
+                                                    {% else %}
+                                                        N/A
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Global variables for charts
+    let attendanceChart = null;
+    let skipsChart = null;
+    let wellnessChart = null;
+    
+    // Group selection controls
+    const selectAllBtn = document.getElementById('selectAllGroups');
+    const clearAllBtn = document.getElementById('clearAllGroups');
+    const groupCheckboxes = document.querySelectorAll('.group-checkbox');
+    const selectedCount = document.getElementById('selectedCount');
+    const refreshBtn = document.getElementById('refreshData');
+    
+    // Function to update selected groups summary
+    function updateSelectedSummary() {
+        const selectedGroups = Array.from(groupCheckboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+        
+        selectedCount.textContent = selectedGroups.length;
+        
+        // Update button states
+        if (selectedGroups.length === 0) {
+            clearAllBtn.classList.add('active');
+            selectAllBtn.classList.remove('active');
+        } else if (selectedGroups.length === groupCheckboxes.length) {
+            selectAllBtn.classList.add('active');
+            clearAllBtn.classList.remove('active');
+        } else {
+            selectAllBtn.classList.remove('active');
+            clearAllBtn.classList.remove('active');
+        }
+    }
+    
+    // Function to get selected groups as URL parameters
+    function getSelectedGroupsParams() {
+        const selectedGroups = Array.from(groupCheckboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+        
+        return selectedGroups.map(group => `groups=${encodeURIComponent(group)}`).join('&');
+    }
+    
+    // Function to fetch updated data and refresh charts
+    async function updateCharts() {
+        const params = getSelectedGroupsParams();
+        const url = `/api/coach-analytics?${params}`;
+        
+        try {
+            refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Updating...';
+            refreshBtn.disabled = true;
+            
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            // Update metrics overview
+            updateMetricsOverview(data.combined_metrics);
+            
+            // Update charts
+            updateAttendanceChart(data.combined_metrics);
+            updateSkipsChart(data.combined_metrics);
+            updateWellnessChart(data.combined_metrics);
+            updateComparisonTable(data.group_metrics);
+            
+        } catch (error) {
+            console.error('Error updating charts:', error);
+            alert('Error updating data: ' + error.message);
+        } finally {
+            refreshBtn.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Refresh Data';
+            refreshBtn.disabled = false;
+        }
+    }
+    
+    // Function to update metrics overview cards
+    function updateMetricsOverview(metrics) {
+        document.querySelector('.col-md-3:nth-child(1) .card-body h3').textContent = metrics.total_athletes;
+        document.querySelector('.col-md-3:nth-child(2) .card-body h3').textContent = metrics.attendance_metrics.overall_percentage + '%';
+        document.querySelector('.col-md-3:nth-child(3) .card-body h3').textContent = metrics.skips_metrics.overall_average;
+        document.querySelector('.col-md-3:nth-child(4) .card-body h3').textContent = metrics.attendance_metrics.total_practice_days;
+    }
+    
+    // Function to update attendance chart
+    function updateAttendanceChart(metrics) {
+        const attendanceData = metrics.attendance_metrics.daily_averages;
+        
+        // Sort dates chronologically (proper date sorting, not string sorting)
+        const sortedDates = Object.keys(attendanceData).sort((a, b) => new Date(a) - new Date(b));
+        
+        // Format dates correctly without timezone issues
+        const labels = sortedDates.map(date => {
+            const dateObj = new Date(date + 'T00:00:00'); // Force local timezone
+            return `${dateObj.getMonth() + 1}/${dateObj.getDate()}/${dateObj.getFullYear()}`;
+        });
+        const values = sortedDates.map(date => (attendanceData[date] * 100).toFixed(1));
+        
+        
+        
+        if (attendanceChart) {
+            attendanceChart.data.labels = labels;
+            attendanceChart.data.datasets[0].data = values;
+            
+            attendanceChart.update();
+        } else {
+            const ctx = document.getElementById('attendanceChart').getContext('2d');
+            attendanceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Average Attendance %',
+                        data: values,
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        tension: 0.1,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    }
+                }
+            });
+        }
+    }
+    
+    // Function to update skips chart
+    function updateSkipsChart(metrics) {
+        const skipsData = metrics.skips_metrics.daily_averages;
+        
+        // Sort dates chronologically (proper date sorting, not string sorting)
+        const sortedDates = Object.keys(skipsData).sort((a, b) => new Date(a) - new Date(b));
+        
+        // Format dates correctly without timezone issues
+        const labels = sortedDates.map(date => {
+            const dateObj = new Date(date + 'T00:00:00'); // Force local timezone
+            return `${dateObj.getMonth() + 1}/${dateObj.getDate()}/${dateObj.getFullYear()}`;
+        });
+        const values = sortedDates.map(date => skipsData[date]);
+        
+        if (skipsChart) {
+            skipsChart.data.labels = labels;
+            skipsChart.data.datasets[0].data = values;
+            skipsChart.update();
+        } else {
+            const ctx = document.getElementById('skipsChart').getContext('2d');
+            skipsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Average Skips per Day',
+                        data: values,
+                        borderColor: 'rgb(255, 99, 132)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        tension: 0.1,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+    }
+    
+    // Function to update wellness chart
+    function updateWellnessChart(metrics) {
+        const wellnessData = metrics.wellness_metrics;
+        const labels = [];
+        const values = [];
+        const colors = [];
+        
+        const metricColors = {
+            'sleep_hours': 'rgb(153, 102, 255)',
+            'sleep_quality': 'rgb(153, 102, 255)',
+            'energy_level': 'rgb(54, 162, 235)',
+            'stress_level': 'rgb(255, 99, 132)',
+            'practice_effort': 'rgb(255, 206, 86)',
+            'motivation': 'rgb(255, 206, 86)',
+            'hydration': 'rgb(75, 192, 192)',
+            'nutrition': 'rgb(75, 192, 192)',
+            'soreness': 'rgb(255, 159, 64)',
+            'mobility': 'rgb(201, 203, 207)'
+        };
+        
+        const metricNames = {
+            'sleep_hours': 'Sleep Hours',
+            'sleep_quality': 'Sleep Quality',
+            'energy_level': 'Energy Level',
+            'stress_level': 'Stress Level',
+            'practice_effort': 'Practice Effort',
+            'motivation': 'Motivation',
+            'hydration': 'Hydration',
+            'nutrition': 'Nutrition',
+            'soreness': 'Soreness',
+            'mobility': 'Mobility'
+        };
+        
+        Object.entries(wellnessData).forEach(([metric, data]) => {
+            labels.push(metricNames[metric] || metric);
+            values.push(data.average);
+            colors.push(metricColors[metric] || 'rgb(128, 128, 128)');
+        });
+        
+        if (wellnessChart) {
+            wellnessChart.data.labels = labels;
+            wellnessChart.data.datasets[0].data = values;
+            wellnessChart.data.datasets[0].backgroundColor = colors;
+            wellnessChart.update();
+        } else {
+            const ctx = document.getElementById('wellnessChart').getContext('2d');
+            wellnessChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Average Wellness Scores',
+                        data: values,
+                        backgroundColor: colors,
+                        borderColor: colors.map(color => color.replace('rgb', 'rgba').replace(')', ', 0.8)')),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+    }
+    
+    // Function to update comparison table
+    function updateComparisonTable(groupMetrics) {
+        const tbody = document.querySelector('#comparisonTable tbody');
+        if (!tbody) return;
+        
+        tbody.innerHTML = '';
+        
+        Object.entries(groupMetrics).forEach(([group, metrics]) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td><strong>${group}</strong></td>
+                <td>${metrics.total_athletes}</td>
+                <td>${metrics.attendance_metrics.overall_percentage}%</td>
+                <td>${metrics.skips_metrics.overall_average}</td>
+                <td>${metrics.wellness_metrics.energy_level ? metrics.wellness_metrics.energy_level.average.toFixed(1) + '/10' : 'N/A'}</td>
+                <td>${metrics.wellness_metrics.sleep_quality ? metrics.wellness_metrics.sleep_quality.average.toFixed(1) + '/5' : 'N/A'}</td>
+                <td>${metrics.wellness_metrics.stress_level ? metrics.wellness_metrics.stress_level.average.toFixed(1) + '/10' : 'N/A'}</td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+    
+    // Event listeners
+    selectAllBtn.addEventListener('click', function() {
+        groupCheckboxes.forEach(checkbox => checkbox.checked = true);
+        updateSelectedSummary();
+        updateCharts();
+    });
+    
+    clearAllBtn.addEventListener('click', function() {
+        groupCheckboxes.forEach(checkbox => checkbox.checked = false);
+        updateSelectedSummary();
+        updateCharts();
+    });
+    
+    // Update charts when checkboxes change
+    groupCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            updateSelectedSummary();
+            updateCharts();
+        });
+    });
+    
+    // Manual refresh button
+    refreshBtn.addEventListener('click', updateCharts);
+    
+    // Initialize summary and charts on page load
+    updateSelectedSummary();
+    
+    // Initialize charts with current data
+    updateCharts();
+});
+</script>
+{% endblock %}

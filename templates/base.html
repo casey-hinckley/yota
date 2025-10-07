@@ -42,6 +42,11 @@
                     {% if current_user.user_type == 'coach' %}
                     <!-- Coach-specific navigation -->
                     <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('athletes.coach_analytics') }}">
+                            <i class="fas fa-chart-line"></i> Analytics
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('attendance.attendance') }}">
                             <i class="fas fa-calendar-check"></i> Attendance
                         </a>

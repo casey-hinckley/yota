@@ -1027,12 +1027,13 @@ function loadWellnessData(metric) {
                 chart_data: skipsData.map(d => ({
                     date: d.date,
                     display_date: d.display_date,
-                    value: d.running_score
+                    value: d.running_score,
+                    display_value: `Score: ${d.running_score} (${d.skips_count} skips, +${d.daily_points} points)`
                 }))
             });
         } else {
-            // Show message if no future skips data
-            document.getElementById('wellnessErrorMessage').textContent = 'No future practice dates available for skips tracking. Skips scoring starts from today forward.';
+            // Show message if no skips data
+            document.getElementById('wellnessErrorMessage').textContent = 'No practice dates available for skips tracking.';
             document.getElementById('wellnessErrorState').style.display = 'block';
         }
         

@@ -4,6 +4,72 @@
 <div class="row">
     <div class="col-md-12">
         <h1 class="mb-4">Athletes</h1>
+        
+        {% if current_user.user_type == 'coach' %}
+        <!-- Quick Actions for Coaches -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card border-primary">
+                    <div class="card-body text-center">
+                        <h5 class="card-title text-primary">
+                            <i class="fas fa-chart-line me-2"></i>Team Analytics
+                        </h5>
+                        <p class="card-text">View comprehensive team metrics, group comparisons, and trends</p>
+                        <a href="{{ url_for('athletes.coach_analytics') }}" class="btn btn-primary">
+                            <i class="fas fa-chart-bar me-1"></i>Open Analytics Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card border-success">
+                    <div class="card-body text-center">
+                        <h5 class="card-title text-success">
+                            <i class="fas fa-calendar-check me-2"></i>Attendance Tracking
+                        </h5>
+                        <p class="card-text">Mark attendance and track skips for practice sessions</p>
+                        <a href="{{ url_for('attendance.attendance') }}" class="btn btn-success">
+                            <i class="fas fa-calendar-plus me-1"></i>Manage Attendance
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Filter Controls -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    <input type="text" class="form-control" id="searchInput" placeholder="Search by name..." value="{{ current_search }}">
+                </div>
+            </div>
+            <div class="col-md-4">
+                <select class="form-select" id="rosterFilter">
+                    <option value="all" {% if current_roster == '' or current_roster == 'all' %}selected{% endif %}>All Groups</option>
+                    {% for roster in rosters %}
+                        <option value="{{ roster }}" {% if current_roster == roster %}selected{% endif %}>{{ roster }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-outline-secondary w-100" id="clearFilters">
+                    <i class="fas fa-times"></i> Clear
+                </button>
+            </div>
+        </div>
+        
+        <!-- Results count -->
+        <div class="mb-3">
+            <small class="text-muted">
+                Showing {{ athletes|length }} athlete{{ 's' if athletes|length != 1 else '' }}
+                {% if current_search or current_roster %}
+                    matching your filters
+                {% endif %}
+            </small>
+        </div>
+        
         {% if athletes %}
             <div class="row">
                 {% for athlete in athletes %}
@@ -187,6 +253,58 @@ function showAlert(message, type) {
         }
     }, 5000);
 }
+
+// Filter functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const rosterFilter = document.getElementById('rosterFilter');
+    const clearFiltersBtn = document.getElementById('clearFilters');
+    
+    // Function to update URL and reload page with filters
+    function applyFilters() {
+        const searchValue = searchInput.value.trim();
+        const rosterValue = rosterFilter.value;
+        
+        const url = new URL(window.location);
+        
+        if (searchValue) {
+            url.searchParams.set('search', searchValue);
+        } else {
+            url.searchParams.delete('search');
+        }
+        
+        if (rosterValue && rosterValue !== 'all') {
+            url.searchParams.set('roster', rosterValue);
+        } else {
+            url.searchParams.delete('roster');
+        }
+        
+        window.location.href = url.toString();
+    }
+    
+    // Add event listeners
+    searchInput.addEventListener('input', function() {
+        // Debounce the search to avoid too many requests
+        clearTimeout(this.searchTimeout);
+        this.searchTimeout = setTimeout(applyFilters, 500);
+    });
+    
+    rosterFilter.addEventListener('change', applyFilters);
+    
+    clearFiltersBtn.addEventListener('click', function() {
+        searchInput.value = '';
+        rosterFilter.value = 'all';
+        applyFilters();
+    });
+    
+    // Allow Enter key in search input
+    searchInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            clearTimeout(this.searchTimeout);
+            applyFilters();
+        }
+    });
+});
 </script>
 {% endif %}
 {% endblock %}

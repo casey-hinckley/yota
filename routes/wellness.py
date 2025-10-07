@@ -88,7 +88,17 @@ def wellness_questionnaire():
     active_goals = Goal.query.filter_by(user_id=current_user.id, is_active=True).all()
     goals_dict = {goal.goal_type: goal.goal_text for goal in active_goals}
     
-    return render_template('wellness_questionnaire.html', goals=goals_dict)
+    # Check if user has already answered for today
+    today = date.today()
+    existing_entry = WellnessEntry.query.filter_by(
+        user_id=current_user.id,
+        date=today
+    ).first()
+    
+    return render_template('wellness_questionnaire.html', 
+                         goals=goals_dict, 
+                         existing_entry=existing_entry,
+                         today=today)
 
 @wellness_bp.route('/wellness_dashboard')
 @login_required

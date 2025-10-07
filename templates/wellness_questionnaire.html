@@ -6,15 +6,40 @@
         <div class="card wellness-form">
             <div class="card-header bg-primary text-white">
                 <h2 class="text-center mb-0">Wellness Questionnaire</h2>
-                <p class="text-center mb-0 opacity-75">Please fill out this form to help track your wellness and recovery</p>
+                {% if existing_entry %}
+                    <p class="text-center mb-0 opacity-75">
+                        <i class="fas fa-lock me-2"></i>You've already answered for today! You can edit your responses below.
+                    </p>
+                {% else %}
+                    <p class="text-center mb-0 opacity-75">Please fill out this form to help track your wellness and recovery</p>
+                {% endif %}
             </div>
             <div class="card-body p-4">
+                {% if existing_entry %}
+                    <div class="alert alert-info mb-4">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-info-circle me-3"></i>
+                            <div>
+                                <strong>Response Locked for Today</strong><br>
+                                <small>You've already submitted your wellness questionnaire for {{ today.strftime('%B %d, %Y') }}. 
+                                You can edit your responses below, but the date cannot be changed.</small>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
                 <form method="POST">
                     <div class="row">
                         <!-- Basic Information -->
                         <div class="col-md-4 mb-3">
                             <label for="date" class="form-label">Date *</label>
-                            <input type="date" class="form-control" id="date" name="date" required>
+                            <input type="date" class="form-control" id="date" name="date" 
+                                   value="{{ today.strftime('%Y-%m-%d') }}" 
+                                   {% if existing_entry %}readonly{% endif %} required>
+                            {% if existing_entry %}
+                                <small class="form-text text-muted">
+                                    <i class="fas fa-info-circle me-1"></i>Date is locked to today since you've already answered
+                                </small>
+                            {% endif %}
                         </div>
                     </div>
 
@@ -37,13 +62,13 @@
                                 </label>
                                 <select class="form-select form-select-lg" id="sleep_hours" name="sleep_hours">
                                     <option value="">Select hours...</option>
-                                    <option value="4">4 hours or less</option>
-                                    <option value="5">5 hours</option>
-                                    <option value="6">6 hours</option>
-                                    <option value="7">7 hours</option>
-                                    <option value="8">8 hours</option>
-                                    <option value="9">9 hours</option>
-                                    <option value="10">10+ hours</option>
+                                    <option value="4" {% if existing_entry and existing_entry.sleep_hours == 4 %}selected{% endif %}>4 hours or less</option>
+                                    <option value="5" {% if existing_entry and existing_entry.sleep_hours == 5 %}selected{% endif %}>5 hours</option>
+                                    <option value="6" {% if existing_entry and existing_entry.sleep_hours == 6 %}selected{% endif %}>6 hours</option>
+                                    <option value="7" {% if existing_entry and existing_entry.sleep_hours == 7 %}selected{% endif %}>7 hours</option>
+                                    <option value="8" {% if existing_entry and existing_entry.sleep_hours == 8 %}selected{% endif %}>8 hours</option>
+                                    <option value="9" {% if existing_entry and existing_entry.sleep_hours == 9 %}selected{% endif %}>9 hours</option>
+                                    <option value="10" {% if existing_entry and existing_entry.sleep_hours == 10 %}selected{% endif %}>10+ hours</option>
                                 </select>
                             </div>
                             <div class="col-md-6">
@@ -57,11 +82,11 @@
                                 </label>
                                 <select class="form-select form-select-lg" id="sleep_quality" name="sleep_quality">
                                     <option value="">Select quality...</option>
-                                    <option value="1">Poor (1)</option>
-                                    <option value="2">Fair (2)</option>
-                                    <option value="3">Good (3)</option>
-                                    <option value="4">Very Good (4)</option>
-                                    <option value="5">Excellent (5)</option>
+                                    <option value="1" {% if existing_entry and existing_entry.sleep_quality == 1 %}selected{% endif %}>Poor (1)</option>
+                                    <option value="2" {% if existing_entry and existing_entry.sleep_quality == 2 %}selected{% endif %}>Fair (2)</option>
+                                    <option value="3" {% if existing_entry and existing_entry.sleep_quality == 3 %}selected{% endif %}>Good (3)</option>
+                                    <option value="4" {% if existing_entry and existing_entry.sleep_quality == 4 %}selected{% endif %}>Very Good (4)</option>
+                                    <option value="5" {% if existing_entry and existing_entry.sleep_quality == 5 %}selected{% endif %}>Excellent (5)</option>
                                 </select>
                             </div>
                         </div>
@@ -86,16 +111,16 @@
                                 </label>
                                 <select class="form-select form-select-lg" id="energy_level" name="energy_level">
                                     <option value="">Select energy level...</option>
-                                    <option value="1">1 - Very Low</option>
-                                    <option value="2">2</option>
-                                    <option value="3">3</option>
-                                    <option value="4">4</option>
-                                    <option value="5">5 - Average</option>
-                                    <option value="6">6</option>
-                                    <option value="7">7</option>
-                                    <option value="8">8</option>
-                                    <option value="9">9</option>
-                                    <option value="10">10 - Very High</option>
+                                    <option value="1" {% if existing_entry and existing_entry.energy_level == 1 %}selected{% endif %}>1 - Very Low</option>
+                                    <option value="2" {% if existing_entry and existing_entry.energy_level == 2 %}selected{% endif %}>2</option>
+                                    <option value="3" {% if existing_entry and existing_entry.energy_level == 3 %}selected{% endif %}>3</option>
+                                    <option value="4" {% if existing_entry and existing_entry.energy_level == 4 %}selected{% endif %}>4</option>
+                                    <option value="5" {% if existing_entry and existing_entry.energy_level == 5 %}selected{% endif %}>5 - Average</option>
+                                    <option value="6" {% if existing_entry and existing_entry.energy_level == 6 %}selected{% endif %}>6</option>
+                                    <option value="7" {% if existing_entry and existing_entry.energy_level == 7 %}selected{% endif %}>7</option>
+                                    <option value="8" {% if existing_entry and existing_entry.energy_level == 8 %}selected{% endif %}>8</option>
+                                    <option value="9" {% if existing_entry and existing_entry.energy_level == 9 %}selected{% endif %}>9</option>
+                                    <option value="10" {% if existing_entry and existing_entry.energy_level == 10 %}selected{% endif %}>10 - Very High</option>
                                 </select>
                             </div>
                             <div class="col-md-6">
@@ -109,16 +134,16 @@
                                 </label>
                                 <select class="form-select form-select-lg" id="stress_level" name="stress_level">
                                     <option value="">Select stress level...</option>
-                                    <option value="1">1 - Very Low</option>
-                                    <option value="2">2</option>
-                                    <option value="3">3</option>
-                                    <option value="4">4</option>
-                                    <option value="5">5 - Average</option>
-                                    <option value="6">6</option>
-                                    <option value="7">7</option>
-                                    <option value="8">8</option>
-                                    <option value="9">9</option>
-                                    <option value="10">10 - Very High</option>
+                                    <option value="1" {% if existing_entry and existing_entry.stress_level == 1 %}selected{% endif %}>1 - Very Low</option>
+                                    <option value="2" {% if existing_entry and existing_entry.stress_level == 2 %}selected{% endif %}>2</option>
+                                    <option value="3" {% if existing_entry and existing_entry.stress_level == 3 %}selected{% endif %}>3</option>
+                                    <option value="4" {% if existing_entry and existing_entry.stress_level == 4 %}selected{% endif %}>4</option>
+                                    <option value="5" {% if existing_entry and existing_entry.stress_level == 5 %}selected{% endif %}>5 - Average</option>
+                                    <option value="6" {% if existing_entry and existing_entry.stress_level == 6 %}selected{% endif %}>6</option>
+                                    <option value="7" {% if existing_entry and existing_entry.stress_level == 7 %}selected{% endif %}>7</option>
+                                    <option value="8" {% if existing_entry and existing_entry.stress_level == 8 %}selected{% endif %}>8</option>
+                                    <option value="9" {% if existing_entry and existing_entry.stress_level == 9 %}selected{% endif %}>9</option>
+                                    <option value="10" {% if existing_entry and existing_entry.stress_level == 10 %}selected{% endif %}>10 - Very High</option>
                                 </select>
                             </div>
                         </div>
@@ -134,16 +159,16 @@
                                 </label>
                                 <select class="form-select form-select-lg" id="practice_effort" name="practice_effort">
                                     <option value="">No practice today / Select effort...</option>
-                                    <option value="1">1 - Very Low</option>
-                                    <option value="2">2</option>
-                                    <option value="3">3</option>
-                                    <option value="4">4</option>
-                                    <option value="5">5 - Average</option>
-                                    <option value="6">6</option>
-                                    <option value="7">7</option>
-                                    <option value="8">8</option>
-                                    <option value="9">9</option>
-                                    <option value="10">10 - Very High</option>
+                                    <option value="1" {% if existing_entry and existing_entry.practice_effort == 1 %}selected{% endif %}>1 - Very Low</option>
+                                    <option value="2" {% if existing_entry and existing_entry.practice_effort == 2 %}selected{% endif %}>2</option>
+                                    <option value="3" {% if existing_entry and existing_entry.practice_effort == 3 %}selected{% endif %}>3</option>
+                                    <option value="4" {% if existing_entry and existing_entry.practice_effort == 4 %}selected{% endif %}>4</option>
+                                    <option value="5" {% if existing_entry and existing_entry.practice_effort == 5 %}selected{% endif %}>5 - Average</option>
+                                    <option value="6" {% if existing_entry and existing_entry.practice_effort == 6 %}selected{% endif %}>6</option>
+                                    <option value="7" {% if existing_entry and existing_entry.practice_effort == 7 %}selected{% endif %}>7</option>
+                                    <option value="8" {% if existing_entry and existing_entry.practice_effort == 8 %}selected{% endif %}>8</option>
+                                    <option value="9" {% if existing_entry and existing_entry.practice_effort == 9 %}selected{% endif %}>9</option>
+                                    <option value="10" {% if existing_entry and existing_entry.practice_effort == 10 %}selected{% endif %}>10 - Very High</option>
                                 </select>
                             </div>
                             <div class="col-md-6">
@@ -157,16 +182,16 @@
                                 </label>
                                 <select class="form-select form-select-lg" id="motivation" name="motivation">
                                     <option value="">Select motivation...</option>
-                                    <option value="1">1 - Very Low</option>
-                                    <option value="2">2</option>
-                                    <option value="3">3</option>
-                                    <option value="4">4</option>
-                                    <option value="5">5 - Average</option>
-                                    <option value="6">6</option>
-                                    <option value="7">7</option>
-                                    <option value="8">8</option>
-                                    <option value="9">9</option>
-                                    <option value="10">10 - Very High</option>
+                                    <option value="1" {% if existing_entry and existing_entry.motivation == 1 %}selected{% endif %}>1 - Very Low</option>
+                                    <option value="2" {% if existing_entry and existing_entry.motivation == 2 %}selected{% endif %}>2</option>
+                                    <option value="3" {% if existing_entry and existing_entry.motivation == 3 %}selected{% endif %}>3</option>
+                                    <option value="4" {% if existing_entry and existing_entry.motivation == 4 %}selected{% endif %}>4</option>
+                                    <option value="5" {% if existing_entry and existing_entry.motivation == 5 %}selected{% endif %}>5 - Average</option>
+                                    <option value="6" {% if existing_entry and existing_entry.motivation == 6 %}selected{% endif %}>6</option>
+                                    <option value="7" {% if existing_entry and existing_entry.motivation == 7 %}selected{% endif %}>7</option>
+                                    <option value="8" {% if existing_entry and existing_entry.motivation == 8 %}selected{% endif %}>8</option>
+                                    <option value="9" {% if existing_entry and existing_entry.motivation == 9 %}selected{% endif %}>9</option>
+                                    <option value="10" {% if existing_entry and existing_entry.motivation == 10 %}selected{% endif %}>10 - Very High</option>
                                 </select>
                             </div>
                         </div>
@@ -191,10 +216,10 @@
                                 </label>
                                 <select class="form-select form-select-lg" id="hydration" name="hydration">
                                     <option value="">Select hydration...</option>
-                                    <option value="excellent">Excellent - Well hydrated</option>
-                                    <option value="good">Good - Adequately hydrated</option>
-                                    <option value="fair">Fair - Could drink more</option>
-                                    <option value="poor">Poor - Dehydrated</option>
+                                    <option value="excellent" {% if existing_entry and existing_entry.hydration == 'excellent' %}selected{% endif %}>Excellent - Well hydrated</option>
+                                    <option value="good" {% if existing_entry and existing_entry.hydration == 'good' %}selected{% endif %}>Good - Adequately hydrated</option>
+                                    <option value="fair" {% if existing_entry and existing_entry.hydration == 'fair' %}selected{% endif %}>Fair - Could drink more</option>
+                                    <option value="poor" {% if existing_entry and existing_entry.hydration == 'poor' %}selected{% endif %}>Poor - Dehydrated</option>
                                 </select>
                             </div>
                             <div class="col-md-4">
@@ -208,10 +233,10 @@
                                 </label>
                                 <select class="form-select form-select-lg" id="nutrition" name="nutrition">
                                     <option value="">Select nutrition...</option>
-                                    <option value="excellent">Excellent - Proper sports nutrition</option>
-                                    <option value="good">Good - Mostly good sports nutrition</option>
-                                    <option value="fair">Fair - Some good choices, missing key nutrients</option>
-                                    <option value="poor">Poor - Mostly processed foods, poor timing</option>
+                                    <option value="excellent" {% if existing_entry and existing_entry.nutrition == 'excellent' %}selected{% endif %}>Excellent - Proper sports nutrition</option>
+                                    <option value="good" {% if existing_entry and existing_entry.nutrition == 'good' %}selected{% endif %}>Good - Mostly good sports nutrition</option>
+                                    <option value="fair" {% if existing_entry and existing_entry.nutrition == 'fair' %}selected{% endif %}>Fair - Some good choices, missing key nutrients</option>
+                                    <option value="poor" {% if existing_entry and existing_entry.nutrition == 'poor' %}selected{% endif %}>Poor - Mostly processed foods, poor timing</option>
                                 </select>
                             </div>
                             <div class="col-md-4">
@@ -225,11 +250,11 @@
                                 </label>
                                 <select class="form-select form-select-lg" id="soreness" name="soreness">
                                     <option value="">Select soreness level...</option>
-                                    <option value="none">None - No soreness</option>
-                                    <option value="mild">Mild - Slight soreness</option>
-                                    <option value="moderate">Moderate - Noticeable soreness</option>
-                                    <option value="severe">Severe - Very sore</option>
-                                    <option value="extreme">Extreme - Painful to move</option>
+                                    <option value="none" {% if existing_entry and existing_entry.soreness == 'none' %}selected{% endif %}>None - No soreness</option>
+                                    <option value="mild" {% if existing_entry and existing_entry.soreness == 'mild' %}selected{% endif %}>Mild - Slight soreness</option>
+                                    <option value="moderate" {% if existing_entry and existing_entry.soreness == 'moderate' %}selected{% endif %}>Moderate - Noticeable soreness</option>
+                                    <option value="severe" {% if existing_entry and existing_entry.soreness == 'severe' %}selected{% endif %}>Severe - Very sore</option>
+                                    <option value="extreme" {% if existing_entry and existing_entry.soreness == 'extreme' %}selected{% endif %}>Extreme - Painful to move</option>
                                 </select>
                             </div>
                         </div>
@@ -245,7 +270,7 @@
                         <div class="row g-4">
                             <div class="col-md-6">
                                 <div class="form-check form-check-lg">
-                                    <input class="form-check-input" type="checkbox" id="mobility" name="mobility" value="on">
+                                    <input class="form-check-input" type="checkbox" id="mobility" name="mobility" value="on" {% if existing_entry and existing_entry.mobility %}checked{% endif %}>
                                     <label class="form-check-label fw-semibold" for="mobility">
                                         Did you do your mobility/rehab routine today?
                                         <span class="badge bg-secondary ms-2" 
@@ -276,7 +301,7 @@
                                             </h5>
                                             <p id="wellness_goal1_display" class="card-text">{{ goals.goal1 if goals.goal1 else "No goal set" }}</p>
                                             <div class="form-check form-check-lg">
-                                                <input class="form-check-input" type="checkbox" id="goal1_achieved" name="goal1_achieved">
+                                                <input class="form-check-input" type="checkbox" id="goal1_achieved" name="goal1_achieved" {% if existing_entry and existing_entry.goal1_achieved %}checked{% endif %}>
                                                 <label class="form-check-label fw-semibold" for="goal1_achieved">
                                                     Achieved today
                                                 </label>
@@ -292,7 +317,7 @@
                                             </h5>
                                             <p id="wellness_goal2_display" class="card-text">{{ goals.goal2 if goals.goal2 else "No goal set" }}</p>
                                             <div class="form-check form-check-lg">
-                                                <input class="form-check-input" type="checkbox" id="goal2_achieved" name="goal2_achieved">
+                                                <input class="form-check-input" type="checkbox" id="goal2_achieved" name="goal2_achieved" {% if existing_entry and existing_entry.goal2_achieved %}checked{% endif %}>
                                                 <label class="form-check-label fw-semibold" for="goal2_achieved">
                                                     Achieved today
                                                 </label>
@@ -308,7 +333,11 @@
                     
                     <div class="d-grid gap-2 d-md-flex justify-content-md-center">
                         <button type="submit" class="btn btn-primary btn-lg px-5">
-                            <i class="fas fa-paper-plane me-2"></i>Submit Wellness Questionnaire
+                            {% if existing_entry %}
+                                <i class="fas fa-save me-2"></i>Update Wellness Response
+                            {% else %}
+                                <i class="fas fa-paper-plane me-2"></i>Submit Wellness Questionnaire
+                            {% endif %}
                         </button>
                     </div>
                 </form>
@@ -318,10 +347,13 @@
 </div>
 
 <script>
-// Set today's date as default
+// Set today's date as default (only if not already set)
 document.addEventListener('DOMContentLoaded', function() {
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('date').value = today;
+    const dateField = document.getElementById('date');
+    if (!dateField.value) {
+        const today = new Date().toISOString().split('T')[0];
+        dateField.value = today;
+    }
     
     // Initialize Bootstrap popovers
     var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
