@@ -393,7 +393,7 @@ def calculate_attendance_metrics(athlete):
         # Calculate points for this day:
         # +1 point for full attendance (1.0), +0.75 for 0.75, +0.5 for 0.5, +0.25 for 0.25
         # -1 point for absence (0.0) on practice days
-        daily_points = attendance_value - 1.0 if attendance_value < 1.0 else attendance_value
+        daily_points = attendance_value if attendance_value > 0 else -1.0
         
         # Update running score
         running_score += daily_points
@@ -508,6 +508,9 @@ def calculate_team_metrics_optimized(athletes, attendance_by_athlete, wellness_b
             'skips': record.skips or 0
         })
     
+    # Total number of athletes in this group (for percentage calculation)
+    total_athletes = len(athletes)
+    
     # Calculate averages
     avg_attendance_by_date = {}
     avg_skips_by_date = {}
@@ -518,7 +521,8 @@ def calculate_team_metrics_optimized(athletes, attendance_by_athlete, wellness_b
             present_count = sum(1 for r in records if r['attendance_value'] > 0)
             if present_count > 0:
                 date_str = practice_date.strftime('%Y-%m-%d')
-                avg_attendance_by_date[date_str] = sum(r['attendance_value'] for r in records) / len(records)
+                # Calculate percentage: (number present / total athletes in group)
+                avg_attendance_by_date[date_str] = present_count / total_athletes
                 avg_skips_by_date[date_str] = sum(r['skips'] for r in records) / len(records)
     
     # Calculate overall attendance percentage
@@ -619,6 +623,9 @@ def calculate_team_metrics(athletes):
             'skips': record.skips or 0
         })
     
+    # Total number of athletes in this group (for percentage calculation)
+    total_athletes = len(athletes)
+    
     # Calculate averages
     avg_attendance_by_date = {}
     avg_skips_by_date = {}
@@ -629,7 +636,8 @@ def calculate_team_metrics(athletes):
             present_count = sum(1 for r in records if r['attendance_value'] > 0)
             if present_count > 0:
                 date_str = practice_date.strftime('%Y-%m-%d')
-                avg_attendance_by_date[date_str] = sum(r['attendance_value'] for r in records) / len(records)
+                # Calculate percentage: (number present / total athletes in group)
+                avg_attendance_by_date[date_str] = present_count / total_athletes
                 avg_skips_by_date[date_str] = sum(r['skips'] for r in records) / len(records)
     
     # Calculate overall attendance percentage
