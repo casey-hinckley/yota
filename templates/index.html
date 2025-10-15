@@ -253,18 +253,63 @@ function showAlert(message, type) {
         }
     }, 5000);
 }
+</script>
+{% endif %}
 
-// Filter functionality
+<!-- Filter functionality - available for all users -->
+<script>
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('searchInput');
     const rosterFilter = document.getElementById('rosterFilter');
     const clearFiltersBtn = document.getElementById('clearFilters');
+    const athleteCards = document.querySelectorAll('.col-md-4.mb-4');
+    const resultsCount = document.querySelector('.mb-3 small');
     
-    // Function to update URL and reload page with filters
-    function applyFilters() {
-        const searchValue = searchInput.value.trim();
+    // Function to filter athletes in real-time
+    function filterAthletes() {
+        const searchValue = searchInput.value.trim().toLowerCase();
         const rosterValue = rosterFilter.value;
         
+        let visibleCount = 0;
+        
+        athleteCards.forEach(card => {
+            const cardBody = card.querySelector('.card-body');
+            const athleteName = cardBody.querySelector('.card-title').textContent.toLowerCase();
+            const rosterText = cardBody.textContent;
+            
+            // Extract roster from card text (looking for "Roster: [name]")
+            let athleteRoster = '';
+            const rosterMatch = rosterText.match(/Roster:\s*([^\n]+)/);
+            if (rosterMatch) {
+                athleteRoster = rosterMatch[1].trim();
+            }
+            
+            // Check if athlete matches search
+            const matchesSearch = !searchValue || athleteName.includes(searchValue);
+            
+            // Check if athlete matches roster filter
+            const matchesRoster = !rosterValue || rosterValue === 'all' || athleteRoster === rosterValue;
+            
+            // Show or hide the card
+            if (matchesSearch && matchesRoster) {
+                card.style.display = '';
+                visibleCount++;
+            } else {
+                card.style.display = 'none';
+            }
+        });
+        
+        // Update the results count
+        const plural = visibleCount !== 1 ? 's' : '';
+        const filterText = (searchValue || (rosterValue && rosterValue !== 'all')) ? ' matching your filters' : '';
+        resultsCount.textContent = `Showing ${visibleCount} athlete${plural}${filterText}`;
+        
+        // Update URL without reloading (for bookmarking)
+        updateURL(searchValue, rosterValue);
+    }
+    
+    // Function to update URL without reloading page
+    function updateURL(searchValue, rosterValue) {
         const url = new URL(window.location);
         
         if (searchValue) {
@@ -279,32 +324,20 @@ document.addEventListener('DOMContentLoaded', function() {
             url.searchParams.delete('roster');
         }
         
-        window.location.href = url.toString();
+        // Update URL without reloading
+        window.history.replaceState({}, '', url.toString());
     }
     
-    // Add event listeners
-    searchInput.addEventListener('input', function() {
-        // Debounce the search to avoid too many requests
-        clearTimeout(this.searchTimeout);
-        this.searchTimeout = setTimeout(applyFilters, 500);
-    });
+    // Add event listeners for real-time filtering
+    searchInput.addEventListener('input', filterAthletes);
     
-    rosterFilter.addEventListener('change', applyFilters);
+    rosterFilter.addEventListener('change', filterAthletes);
     
     clearFiltersBtn.addEventListener('click', function() {
         searchInput.value = '';
         rosterFilter.value = 'all';
-        applyFilters();
-    });
-    
-    // Allow Enter key in search input
-    searchInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            clearTimeout(this.searchTimeout);
-            applyFilters();
-        }
+        filterAthletes();
     });
 });
 </script>
-{% endif %}
 {% endblock %}
