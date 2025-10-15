@@ -115,7 +115,6 @@
     .desktop-skips-only {
         display: table-cell !important;
     }
-}
     
     .notes-input {
         font-size: 14px;
@@ -185,7 +184,7 @@
             <div class="alert alert-info">
                 <i class="fas fa-info-circle"></i>
                 <strong>Instructions:</strong> Select a date and mark attendance for each athlete. 
-                Changes are saved automatically. Use partial attendance for athletes who attended part of practice.
+                Changes are saved automatically. Click the status badge to set partial attendance (0.25-1.0 for single practice, 1.25-2.0 for groups with two practices per day).
             </div>
             
             <div class="card">
@@ -305,6 +304,10 @@ document.addEventListener('DOMContentLoaded', function() {
         if (status === 'present') {
             if (attendanceValue === 1.0) {
                 return '<span class="badge bg-success">Present</span>';
+            } else if (attendanceValue >= 2.0) {
+                return '<span class="badge bg-success">Both (2.0)</span>';
+            } else if (attendanceValue > 1.0) {
+                return `<span class="badge bg-success">Multiple (${attendanceValue})</span>`;
             } else {
                 return `<span class="badge bg-warning">Partial (${attendanceValue})</span>`;
             }
@@ -333,6 +336,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function getPartialDropdownOptions() {
         return `
+            <li><h6 class="dropdown-header">Two Practices</h6></li>
+            <li><a class="dropdown-item" href="#" onclick="setAttendanceValue(2.0)">Both (2.0)</a></li>
+            <li><a class="dropdown-item" href="#" onclick="setAttendanceValue(1.75)">1¾ (1.75)</a></li>
+            <li><a class="dropdown-item" href="#" onclick="setAttendanceValue(1.5)">1½ (1.5)</a></li>
+            <li><a class="dropdown-item" href="#" onclick="setAttendanceValue(1.25)">1¼ (1.25)</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><h6 class="dropdown-header">One Practice</h6></li>
             <li><a class="dropdown-item" href="#" onclick="setAttendanceValue(1.0)">Full (1.0)</a></li>
             <li><a class="dropdown-item" href="#" onclick="setAttendanceValue(0.75)">3/4 (0.75)</a></li>
             <li><a class="dropdown-item" href="#" onclick="setAttendanceValue(0.5)">Half (0.5)</a></li>
@@ -516,9 +526,8 @@ document.addEventListener('DOMContentLoaded', function() {
             if (result.error) {
                 showAlert('error', result.error);
             } else {
-                showAlert('success', 'Attendance updated successfully');
-                // Reload the table to show updated status
-                loadAttendanceData();
+                // Don't reload table or show alert to prevent scrolling and interruption
+                // The UI is already updated in setAttendanceValue
             }
         })
         .catch(error => {
