@@ -66,7 +66,7 @@ def api_rankings():
             # Don't go beyond today
             if end_date > today:
                 end_date = today
-        
+                
         elif time_range == 'lastweek':
             # Last week: Previous Monday to Saturday
             days_since_monday = today.weekday()
