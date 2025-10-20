@@ -8,6 +8,7 @@ def register_routes(app):
     from .goals import goals_bp
     from .wellness import wellness_bp
     from .attendance import attendance_bp
+    from .rankings import rankings_bp
     
     app.register_blueprint(auth_bp)
     app.register_blueprint(athletes_bp)
@@ -15,3 +16,4 @@ def register_routes(app):
     app.register_blueprint(goals_bp)
     app.register_blueprint(wellness_bp)
     app.register_blueprint(attendance_bp)
+    app.register_blueprint(rankings_bp)

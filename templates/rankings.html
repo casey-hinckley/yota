@@ -1,0 +1,378 @@
+{% extends "base.html" %}
+
+{% block title %}Global Rankings - Athlete Metrics{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h1 class="mb-4">
+            <i class="fas fa-trophy text-warning"></i> Global Rankings
+        </h1>
+        <p class="lead text-muted mb-4">
+            See who's leading the way in skip scores, goal achievement, and consistency!
+        </p>
+
+        <!-- Filter Controls -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label"><strong>Filter by Groups:</strong></label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="selectAllGroups" checked>
+                            <label class="form-check-label" for="selectAllGroups">
+                                <strong>Select All</strong>
+                            </label>
+                        </div>
+                        <div class="row">
+                            {% for roster in rosters %}
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input group-checkbox" type="checkbox" 
+                                           value="{{ roster }}" id="group-{{ loop.index }}" checked>
+                                    <label class="form-check-label" for="group-{{ loop.index }}">
+                                        {{ roster }}
+                                    </label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="timeRange"><strong>Time Range:</strong></label>
+                        <select class="form-select mb-3" id="timeRange">
+                            <option value="week">This Week (Mon-Sat)</option>
+                            <option value="lastweek">Last Week (Mon-Sat)</option>
+                            <option value="month">This Month</option>
+                            <option value="all" selected>All Time</option>
+                        </select>
+                        <div class="text-muted small">
+                            <i class="fas fa-sync-alt me-1"></i>Updates live without reloading
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Skip Scores -->
+        <div class="card mb-4 border-primary">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">
+                    <i class="fas fa-star me-2"></i>Top Skip Scores
+                </h4>
+                <small>Running score based on daily skips (+3 for zero skips, -1 per skip)</small>
+            </div>
+            <div class="card-body" id="skipScoresContainer">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Skip Streaks -->
+        <div class="card mb-4 border-success">
+            <div class="card-header bg-success text-white">
+                <h4 class="mb-0">
+                    <i class="fas fa-fire me-2"></i>Top Skip Streaks
+                </h4>
+                <small>Current streak of consecutive days with zero skips</small>
+            </div>
+            <div class="card-body" id="skipStreaksContainer">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-success" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Goal Streaks -->
+        <div class="card mb-4 border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h4 class="mb-0">
+                    <i class="fas fa-bullseye me-2"></i>Top Goal Streaks
+                </h4>
+                <small>Current streak of consecutive days achieving their goals</small>
+            </div>
+            <div class="card-body" id="goalStreaksContainer">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-warning" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Info Section -->
+        <div class="card bg-light">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-question-circle me-2"></i>How Rankings Work
+                </h5>
+                <div class="row">
+                    <div class="col-md-4">
+                        <h6 class="text-primary">Skip Scores</h6>
+                        <p class="small">
+                            Athletes earn +3 points for each day with zero skips and lose 1 point for each skip. 
+                            This creates a running total that rewards consistency.
+                        </p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-success">Skip Streaks</h6>
+                        <p class="small">
+                            Tracks the current number of consecutive days an athlete has had zero skips. 
+                            One skip breaks the streak back to zero.
+                        </p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 style="color: #ffc107;">Goal Streaks</h6>
+                        <p class="small">
+                            Tracks the current number of consecutive days an athlete has achieved their daily goals. 
+                            Missing a goal breaks the streak.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAllCheckbox = document.getElementById('selectAllGroups');
+    const groupCheckboxes = document.querySelectorAll('.group-checkbox');
+    const timeRangeSelect = document.getElementById('timeRange');
+    
+    // Debounce function to avoid too many rapid fetches
+    let debounceTimer;
+    function debounceFetch() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+            fetchRankings();
+        }, 300);
+    }
+    
+    // Function to fetch and update rankings
+    async function fetchRankings() {
+        // Get selected groups
+        const selectedGroups = Array.from(groupCheckboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+        
+        // Get time range
+        const timeRange = timeRangeSelect.value;
+        
+        // Build query string
+        const params = new URLSearchParams();
+        selectedGroups.forEach(group => params.append('groups', group));
+        params.append('time_range', timeRange);
+        
+        try {
+            const response = await fetch(`/api/rankings?${params.toString()}`);
+            const data = await response.json();
+            
+            // Update each section
+            renderSkipScores(data.top_skip_scores);
+            renderSkipStreaks(data.top_skip_streaks);
+            renderGoalStreaks(data.top_goal_streaks);
+        } catch (error) {
+            console.error('Error fetching rankings:', error);
+            showError();
+        }
+    }
+    
+    // Render skip scores
+    function renderSkipScores(items) {
+        const container = document.getElementById('skipScoresContainer');
+        
+        if (!items || items.length === 0) {
+            container.innerHTML = `
+                <div class="alert alert-info mb-0">
+                    <i class="fas fa-info-circle me-2"></i>No skip scores available yet. Keep tracking attendance to see rankings!
+                </div>
+            `;
+            return;
+        }
+        
+        let html = '<div class="list-group">';
+        let rank = 0;
+        let lastScore = null;
+        
+        items.forEach((item, index) => {
+            if (lastScore !== item.score) {
+                rank = index + 1;
+            }
+            
+            const isTied = lastScore === item.score && index + 1 > rank;
+            
+            html += `
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="badge bg-primary rounded-pill me-2">#${rank}</span>
+                        <strong>${item.athlete_name}</strong>
+                        <small class="text-muted ms-2">(${item.roster})</small>
+                        ${isTied ? '<span class="badge bg-secondary ms-1">Tied</span>' : ''}
+                        <br>
+                        <small class="text-muted">Tracked over ${item.days_tracked} days</small>
+                    </div>
+                    <div class="text-end">
+                        <h4 class="mb-0 text-primary">${item.score}</h4>
+                        <small class="text-muted">points</small>
+                    </div>
+                </div>
+            `;
+            
+            lastScore = item.score;
+        });
+        
+        html += '</div>';
+        container.innerHTML = html;
+    }
+    
+    // Render skip streaks
+    function renderSkipStreaks(items) {
+        const container = document.getElementById('skipStreaksContainer');
+        
+        if (!items || items.length === 0) {
+            container.innerHTML = `
+                <div class="alert alert-info mb-0">
+                    <i class="fas fa-info-circle me-2"></i>No skip streaks available yet. Keep tracking to see who's most consistent!
+                </div>
+            `;
+            return;
+        }
+        
+        let html = '<div class="list-group">';
+        let rank = 0;
+        let lastStreak = null;
+        
+        items.forEach((item, index) => {
+            if (lastStreak !== item.streak) {
+                rank = index + 1;
+            }
+            
+            const isTied = lastStreak === item.streak && index + 1 > rank;
+            const dayText = item.streak === 1 ? 'day' : 'days';
+            
+            html += `
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="badge bg-success rounded-pill me-2">#${rank}</span>
+                        <strong>${item.athlete_name}</strong>
+                        <small class="text-muted ms-2">(${item.roster})</small>
+                        ${isTied ? '<span class="badge bg-secondary ms-1">Tied</span>' : ''}
+                    </div>
+                    <div class="text-end">
+                        <h4 class="mb-0 text-success">${item.streak}</h4>
+                        <small class="text-muted">${dayText}</small>
+                    </div>
+                </div>
+            `;
+            
+            lastStreak = item.streak;
+        });
+        
+        html += '</div>';
+        container.innerHTML = html;
+    }
+    
+    // Render goal streaks
+    function renderGoalStreaks(items) {
+        const container = document.getElementById('goalStreaksContainer');
+        
+        if (!items || items.length === 0) {
+            container.innerHTML = `
+                <div class="alert alert-info mb-0">
+                    <i class="fas fa-info-circle me-2"></i>No goal streaks available yet. Start setting and achieving goals to appear here!
+                </div>
+            `;
+            return;
+        }
+        
+        let html = '<div class="list-group">';
+        let rank = 0;
+        let lastStreak = null;
+        
+        items.forEach((item, index) => {
+            if (lastStreak !== item.streak) {
+                rank = index + 1;
+            }
+            
+            const isTied = lastStreak === item.streak && index + 1 > rank;
+            const dayText = item.streak === 1 ? 'day' : 'days';
+            
+            html += `
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="badge bg-warning text-dark rounded-pill me-2">#${rank}</span>
+                        <strong>${item.user_name}</strong>
+                        <small class="text-muted ms-2">(${item.goal_type})</small>
+                        ${isTied ? '<span class="badge bg-secondary ms-1">Tied</span>' : ''}
+                    </div>
+                    <div class="text-end">
+                        <h4 class="mb-0" style="color: #ffc107;">${item.streak}</h4>
+                        <small class="text-muted">${dayText}</small>
+                    </div>
+                </div>
+            `;
+            
+            lastStreak = item.streak;
+        });
+        
+        html += '</div>';
+        container.innerHTML = html;
+    }
+    
+    // Show error message
+    function showError() {
+        const containers = ['skipScoresContainer', 'skipStreaksContainer', 'goalStreaksContainer'];
+        containers.forEach(id => {
+            document.getElementById(id).innerHTML = `
+                <div class="alert alert-danger mb-0">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Error loading rankings. Please try again.
+                </div>
+            `;
+        });
+    }
+    
+    // Handle "Select All" checkbox
+    selectAllCheckbox.addEventListener('change', function() {
+        groupCheckboxes.forEach(checkbox => {
+            checkbox.checked = selectAllCheckbox.checked;
+        });
+        debounceFetch();
+    });
+    
+    // Update "Select All" checkbox when individual checkboxes change
+    groupCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const allChecked = Array.from(groupCheckboxes).every(cb => cb.checked);
+            const noneChecked = Array.from(groupCheckboxes).every(cb => !cb.checked);
+            
+            selectAllCheckbox.checked = allChecked;
+            selectAllCheckbox.indeterminate = !allChecked && !noneChecked;
+            
+            // Auto-fetch rankings
+            debounceFetch();
+        });
+    });
+    
+    // Handle time range dropdown change
+    timeRangeSelect.addEventListener('change', function() {
+        fetchRankings();
+    });
+    
+    // Initialize the select all checkbox state
+    const allChecked = Array.from(groupCheckboxes).every(cb => cb.checked);
+    const noneChecked = Array.from(groupCheckboxes).every(cb => !cb.checked);
+    selectAllCheckbox.checked = allChecked;
+    selectAllCheckbox.indeterminate = !allChecked && !noneChecked;
+    
+    // Initial load
+    fetchRankings();
+});
+</script>
+{% endblock %}
+

@@ -179,12 +179,34 @@
                         <input type="date" id="datePicker" class="form-control">
                     </div>
                 </div>
+                
+                <!-- Bulk Actions -->
+                <div class="row g-2 mb-3">
+                    <div class="col-12">
+                        <label class="form-label fw-bold">Quick Actions:</label>
+                    </div>
+                    <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                        <button type="button" class="btn btn-success w-100" id="markAllPresentBtn">
+                            <i class="fas fa-check-circle"></i> Mark All Present (1.0)
+                        </button>
+                    </div>
+                    <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                        <button type="button" class="btn btn-primary w-100" id="markAllDoubleBtn">
+                            <i class="fas fa-check-double"></i> Mark All Double (2.0)
+                        </button>
+                    </div>
+                    <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                        <button type="button" class="btn btn-outline-secondary w-100" id="clearAllBtn">
+                            <i class="fas fa-times-circle"></i> Clear All
+                        </button>
+                    </div>
+                </div>
             </div>
             
             <div class="alert alert-info">
                 <i class="fas fa-info-circle"></i>
                 <strong>Instructions:</strong> Select a date and mark attendance for each athlete. 
-                Changes are saved automatically. Click the status badge to set partial attendance (0.25-1.0 for single practice, 1.25-2.0 for groups with two practices per day).
+                Use Quick Actions to mark all filtered athletes at once, or click individual status badges to set partial attendance (0.25-1.0 for single practice, 1.25-2.0 for groups with two practices per day). Changes are saved automatically.
             </div>
             
             <div class="card">
@@ -245,9 +267,6 @@
                             <span class="badge bg-warning">Injury</span><br><small>Injured</small>
                         </div>
                         <div class="col-6 col-sm-4 col-md-3 col-lg-2">
-                            <span class="badge bg-success">Competition</span><br><small>At meet/competition</small>
-                        </div>
-                        <div class="col-6 col-sm-4 col-md-3 col-lg-2">
                             <span class="badge bg-secondary">Excused</span><br><small>Excused absence</small>
                         </div>
                     </div>
@@ -262,6 +281,12 @@
 document.addEventListener('DOMContentLoaded', function() {
     const datePicker = document.getElementById('datePicker');
     const attendanceTableBody = document.getElementById('attendanceTableBody');
+    const markAllPresentBtn = document.getElementById('markAllPresentBtn');
+    const markAllDoubleBtn = document.getElementById('markAllDoubleBtn');
+    const clearAllBtn = document.getElementById('clearAllBtn');
+    
+    // Store current attendance data for bulk actions
+    let currentAttendanceData = [];
     
     // Set default date to today
     const today = new Date().toISOString().split('T')[0];
@@ -270,6 +295,19 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load attendance data when date or roster filter changes
     datePicker.addEventListener('change', loadAttendanceData);
     rosterFilter.addEventListener('change', loadAttendanceData);
+    
+    // Bulk action event listeners
+    markAllPresentBtn.addEventListener('click', function() {
+        markAllAthletes(1.0, 'present');
+    });
+    
+    markAllDoubleBtn.addEventListener('click', function() {
+        markAllAthletes(2.0, 'present');
+    });
+    
+    clearAllBtn.addEventListener('click', function() {
+        markAllAthletes(0.0, 'absent');
+    });
     
     // Load initial data
     loadAttendanceData();
@@ -292,12 +330,84 @@ document.addEventListener('DOMContentLoaded', function() {
                     showAlert('error', data.error);
                     return;
                 }
+                currentAttendanceData = data.attendance; // Store for bulk actions
                 renderAttendanceTable(data.attendance);
             })
             .catch(error => {
                 console.error('Error loading attendance:', error);
                 showAlert('error', 'Failed to load attendance data');
             });
+    }
+    
+    function markAllAthletes(attendanceValue, status) {
+        if (!currentAttendanceData || currentAttendanceData.length === 0) {
+            return;
+        }
+        
+        const selectedDate = datePicker.value;
+        if (!selectedDate) {
+            return;
+        }
+        
+        // Disable buttons during processing
+        markAllPresentBtn.disabled = true;
+        markAllDoubleBtn.disabled = true;
+        clearAllBtn.disabled = true;
+        
+        // Update each athlete
+        let successCount = 0;
+        let errorCount = 0;
+        const promises = currentAttendanceData.map(athlete => {
+            const data = {
+                athlete_id: parseInt(athlete.athlete_id),
+                date: selectedDate,
+                status: status,
+                attendance_value: parseFloat(attendanceValue)
+            };
+            
+            return fetch('/api/attendance', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.error) {
+                    errorCount++;
+                } else {
+                    successCount++;
+                    // Update UI immediately
+                    const checkbox = document.querySelector(`.attendance-checkbox[data-athlete-id="${athlete.athlete_id}"]`);
+                    const statusElement = document.querySelector(`.attendance-status[data-athlete-id="${athlete.athlete_id}"]`);
+                    const dropdownMenu = document.querySelector(`.dropdown-menu[data-athlete-id="${athlete.athlete_id}"]`);
+                    
+                    if (checkbox) checkbox.checked = (status === 'present');
+                    if (statusElement) statusElement.innerHTML = getStatusBadge(status, attendanceValue);
+                    if (dropdownMenu) {
+                        dropdownMenu.innerHTML = (status === 'present') ? getPartialDropdownOptions() : getAbsenceDropdownOptions();
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error updating athlete:', athlete.athlete_id, error);
+                errorCount++;
+            });
+        });
+        
+        // Wait for all updates to complete
+        Promise.all(promises).then(() => {
+            // Re-enable buttons
+            markAllPresentBtn.disabled = false;
+            markAllDoubleBtn.disabled = false;
+            clearAllBtn.disabled = false;
+            
+            // Only show error messages
+            if (errorCount > 0) {
+                showAlert('error', `Updated ${successCount} athletes, ${errorCount} failed`);
+            }
+        });
     }
     
     function getStatusBadge(status, attendanceValue) {
@@ -355,7 +465,6 @@ document.addEventListener('DOMContentLoaded', function() {
             <li><a class="dropdown-item" href="#" onclick="setAbsenceType('absent')">Absent</a></li>
             <li><a class="dropdown-item" href="#" onclick="setAbsenceType('sick')">Sick</a></li>
             <li><a class="dropdown-item" href="#" onclick="setAbsenceType('vacation')">Vacation</a></li>
-            <li><a class="dropdown-item" href="#" onclick="setAbsenceType('competition')">Competition</a></li>
             <li><a class="dropdown-item" href="#" onclick="setAbsenceType('cross_country')">Cross Country</a></li>
             <li><a class="dropdown-item" href="#" onclick="setAbsenceType('open_water')">Open Water</a></li>
             <li><a class="dropdown-item" href="#" onclick="setAbsenceType('extracurricular')">Extracurricular</a></li>

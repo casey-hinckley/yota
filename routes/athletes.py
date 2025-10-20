@@ -369,9 +369,21 @@ def calculate_attendance_metrics(athlete):
     
     roster_practice_dates = [record[0] for record in roster_dates_query.all()]
     
-    # Calculate attendance percentage
-    total_practice_days = len(roster_practice_dates)
-    athlete_present_days = len([record for record in athlete_attendance if record.attendance_value > 0.0])
+    # Determine which dates had double practices (at least one person with attendance > 1)
+    double_practice_dates = set()
+    for practice_date in roster_practice_dates:
+        max_attendance = db.session.query(db.func.max(Attendance.attendance_value)).join(Athlete).filter(
+            Athlete.roster == athlete.roster,
+            Attendance.date == practice_date
+        ).scalar()
+        if max_attendance and max_attendance > 1.0:
+            double_practice_dates.add(practice_date)
+    
+    # Calculate total practice count (counting double practice days as 2)
+    total_practice_days = len(roster_practice_dates) + len(double_practice_dates)
+    
+    # Calculate athlete present days (counting their actual attendance)
+    athlete_present_days = sum(record.attendance_value for record in athlete_attendance if record.attendance_value > 0.0)
     
     attendance_percentage = (athlete_present_days / total_practice_days * 100) if total_practice_days > 0 else 0
     
@@ -390,10 +402,28 @@ def calculate_attendance_metrics(athlete):
             attendance_value = 0.0
             status = 'absent'
         
+        # Check if this was a double practice day
+        is_double_practice = practice_date in double_practice_dates
+        
         # Calculate points for this day:
-        # +1 point for full attendance (1.0), +0.75 for 0.75, +0.5 for 0.5, +0.25 for 0.25
-        # -1 point for absence (0.0) on practice days
-        daily_points = attendance_value if attendance_value > 0 else -1.0
+        # The running score increases by the actual attendance value achieved
+        # Penalties for complete absences scale with number of practices missed
+        if is_double_practice:
+            # Double practice day
+            if attendance_value > 0:
+                # Attended some amount: score increases by attendance value
+                daily_points = attendance_value
+            else:
+                # Missed both practices: -2 penalty
+                daily_points = -2.0
+        else:
+            # Single practice day
+            if attendance_value > 0:
+                # Attended some amount: score increases by attendance value
+                daily_points = attendance_value
+            else:
+                # Missed practice: -1 penalty
+                daily_points = -1.0
         
         # Update running score
         running_score += daily_points
@@ -404,13 +434,14 @@ def calculate_attendance_metrics(athlete):
             'attendance_value': attendance_value,
             'status': status,
             'daily_points': daily_points,
-            'running_score': round(running_score, 1)
+            'running_score': round(running_score, 1),
+            'is_double_practice': is_double_practice
         })
     
     return {
         'attendance_percentage': round(attendance_percentage, 1),
         'total_practice_days': total_practice_days,
-        'athlete_present_days': athlete_present_days,
+        'athlete_present_days': round(athlete_present_days, 1),
         'daily_attendance': daily_attendance,
         'roster': athlete.roster or 'No Roster'
     }
