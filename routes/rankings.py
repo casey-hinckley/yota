@@ -238,6 +238,7 @@ def calculate_all_skip_streaks_optimized(athletes, attendance_by_athlete, roster
             continue
         
         # Calculate current streak (from most recent backwards)
+        # Streak continues if they attended practice (any amount) without skips
         current_streak = 0
         
         for practice_date in reversed(skips_practice_dates):
@@ -245,14 +246,17 @@ def calculate_all_skip_streaks_optimized(athletes, attendance_by_athlete, roster
             
             if athlete_record:
                 skips_count = athlete_record.skips or 0
+                attendance_value = athlete_record.attendance_value or 0.0
             else:
+                # No record means they didn't attend
                 skips_count = 0
+                attendance_value = 0.0
             
-            # If no skips, continue streak
-            if skips_count == 0:
+            # Continue streak if they attended (even partially) without skips
+            if attendance_value > 0 and skips_count == 0:
                 current_streak += 1
             else:
-                # Streak broken
+                # Streak broken by skips or absence
                 break
         
         skip_streaks.append({

@@ -474,12 +474,24 @@ def calculate_skips_metrics(athlete):
         
         if athlete_record:
             skips_count = athlete_record.skips or 0
+            attendance_value = athlete_record.attendance_value or 0.0
         else:
             skips_count = 0
+            attendance_value = 0.0
         
         # Calculate points for this day:
-        # +3 points for 0 skips, -1 point for each skip
-        daily_points = 3 if skips_count == 0 else -skips_count
+        # Only award +3 points for full attendance (1.0) with 0 skips
+        # Still penalize skips even with partial attendance
+        # If absent (attendance_value = 0), score stays the same (0 points)
+        if attendance_value >= 1.0:
+            # Full attendance: +3 for 0 skips, -1 per skip
+            daily_points = 3 if skips_count == 0 else -skips_count
+        elif attendance_value > 0:
+            # Partial attendance: only penalize skips, no bonus
+            daily_points = -skips_count if skips_count > 0 else 0
+        else:
+            # Absent: score stays the same (0 points for the day)
+            daily_points = 0
         
         # Update running score
         running_skips_score += daily_points
@@ -489,7 +501,8 @@ def calculate_skips_metrics(athlete):
             'display_date': practice_date.strftime('%m/%d'),
             'skips_count': skips_count,
             'daily_points': daily_points,
-            'running_score': round(running_skips_score, 1)
+            'running_score': round(running_skips_score, 1),
+            'was_absent': attendance_value == 0.0
         })
     
     # Calculate summary statistics for October 6th, 2025 and forward

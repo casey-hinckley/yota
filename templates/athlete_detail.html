@@ -1026,7 +1026,9 @@ function loadWellnessData(metric) {
                     date: d.date,
                     display_date: d.display_date,
                     value: d.running_score,
-                    display_value: `Score: ${d.running_score} (${d.skips_count} skips, +${d.daily_points} points)`
+                    display_value: d.was_absent 
+                        ? `Score: ${d.running_score} (Absent - no change)`
+                        : `Score: ${d.running_score} (${d.skips_count} skips, ${d.daily_points >= 0 ? '+' : ''}${d.daily_points} points)`
                 }))
             });
         } else {
@@ -1151,7 +1153,7 @@ function createWellnessChart(metric, metricInfo, chartData, metricName) {
                 data: values,
                 borderColor: borderColor,
                 backgroundColor: backgroundColor,
-                tension: 0.3,
+                tension: 0.3,  // Smooth curve for all metrics
                 fill: true,
                 pointRadius: 4,
                 pointHoverRadius: 6
