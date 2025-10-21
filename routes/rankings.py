@@ -187,11 +187,20 @@ def calculate_all_skip_scores_optimized(athletes, attendance_by_athlete, roster_
             
             if athlete_record:
                 skips_count = athlete_record.skips or 0
+                attendance_value = athlete_record.attendance_value or 0.0
             else:
                 skips_count = 0
+                attendance_value = 0.0
             
-            # +3 points for 0 skips, -1 point for each skip
-            daily_points = 3 if skips_count == 0 else -skips_count
+            # Only award +3 points for full attendance (1.0) with 0 skips
+            # Still penalize skips even with partial attendance
+            if attendance_value >= 1.0:
+                # Full attendance: +3 for 0 skips, -1 per skip
+                daily_points = 3 if skips_count == 0 else -skips_count
+            else:
+                # Partial or no attendance: only penalize skips, no bonus
+                daily_points = -skips_count if skips_count > 0 else 0
+            
             running_skips_score += daily_points
         
         skip_scores.append({
