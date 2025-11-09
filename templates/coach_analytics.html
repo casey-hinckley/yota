@@ -20,6 +20,18 @@
                     </div>
                     <div class="card-body">
                         <form method="GET" id="groupFilterForm">
+                            <!-- Timeline Filter -->
+                            <div class="mb-3">
+                                <label class="form-label"><small class="text-muted">Timeline View:</small></label>
+                                <select class="form-select form-select-sm" id="timelineFilter" name="timeline">
+                                    <option value="day" {% if timeline == 'day' or not timeline %}selected{% endif %}>Day by Day</option>
+                                    <option value="week" {% if timeline == 'week' %}selected{% endif %}>Week by Week</option>
+                                    <option value="month" {% if timeline == 'month' %}selected{% endif %}>Month by Month</option>
+                                </select>
+                            </div>
+                            
+                            <hr class="my-3">
+                            
                             <div class="mb-3">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <small class="text-muted">Select Groups:</small>
@@ -224,6 +236,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const groupCheckboxes = document.querySelectorAll('.group-checkbox');
     const selectedCount = document.getElementById('selectedCount');
     const refreshBtn = document.getElementById('refreshData');
+    const timelineFilter = document.getElementById('timelineFilter');
     
     // Function to update selected groups summary
     function updateSelectedSummary() {
@@ -252,7 +265,10 @@ document.addEventListener('DOMContentLoaded', function() {
             .filter(cb => cb.checked)
             .map(cb => cb.value);
         
-        return selectedGroups.map(group => `groups=${encodeURIComponent(group)}`).join('&');
+        const groupParams = selectedGroups.map(group => `groups=${encodeURIComponent(group)}`).join('&');
+        const timelineParam = `timeline=${timelineFilter.value}`;
+        
+        return groupParams ? `${groupParams}&${timelineParam}` : timelineParam;
     }
     
     // Function to fetch updated data and refresh charts
@@ -300,14 +316,21 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to update attendance chart
     function updateAttendanceChart(metrics) {
         const attendanceData = metrics.attendance_metrics.daily_averages;
+        const timeline = timelineFilter.value;
         
         // Sort dates chronologically (proper date sorting, not string sorting)
         const sortedDates = Object.keys(attendanceData).sort((a, b) => new Date(a) - new Date(b));
         
-        // Format dates correctly without timezone issues
+        // Format dates based on timeline
         const labels = sortedDates.map(date => {
             const dateObj = new Date(date + 'T00:00:00'); // Force local timezone
-            return `${dateObj.getMonth() + 1}/${dateObj.getDate()}/${dateObj.getFullYear()}`;
+            if (timeline === 'month') {
+                return `${dateObj.toLocaleString('default', { month: 'short' })} ${dateObj.getFullYear()}`;
+            } else if (timeline === 'week') {
+                return `Week of ${dateObj.getMonth() + 1}/${dateObj.getDate()}`;
+            } else {
+                return `${dateObj.getMonth() + 1}/${dateObj.getDate()}`;
+            }
         });
         const values = sortedDates.map(date => (attendanceData[date] * 100).toFixed(1));
         
@@ -350,14 +373,21 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to update skips chart
     function updateSkipsChart(metrics) {
         const skipsData = metrics.skips_metrics.daily_averages;
+        const timeline = timelineFilter.value;
         
         // Sort dates chronologically (proper date sorting, not string sorting)
         const sortedDates = Object.keys(skipsData).sort((a, b) => new Date(a) - new Date(b));
         
-        // Format dates correctly without timezone issues
+        // Format dates based on timeline
         const labels = sortedDates.map(date => {
             const dateObj = new Date(date + 'T00:00:00'); // Force local timezone
-            return `${dateObj.getMonth() + 1}/${dateObj.getDate()}/${dateObj.getFullYear()}`;
+            if (timeline === 'month') {
+                return `${dateObj.toLocaleString('default', { month: 'short' })} ${dateObj.getFullYear()}`;
+            } else if (timeline === 'week') {
+                return `Week of ${dateObj.getMonth() + 1}/${dateObj.getDate()}`;
+            } else {
+                return `${dateObj.getMonth() + 1}/${dateObj.getDate()}`;
+            }
         });
         const values = sortedDates.map(date => skipsData[date]);
         
@@ -509,6 +539,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Manual refresh button
     refreshBtn.addEventListener('click', updateCharts);
+    
+    // Timeline filter change
+    timelineFilter.addEventListener('change', function() {
+        updateCharts();
+    });
     
     // Initialize summary and charts on page load
     updateSelectedSummary();

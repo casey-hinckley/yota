@@ -57,6 +57,9 @@ def coach_analytics():
     if not selected_groups:
         selected_groups = roster_list  # Show all groups by default
     
+    # Get timeline parameter (default to 'day')
+    timeline = request.args.get('timeline', 'day')
+    
     # Use the same optimized logic as the API endpoint
     all_athletes = Athlete.query.filter(Athlete.roster.in_(selected_groups)).all()
     athlete_ids = [athlete.id for athlete in all_athletes]
@@ -96,7 +99,8 @@ def coach_analytics():
         all_athletes, 
         attendance_by_athlete, 
         wellness_by_user, 
-        user_map
+        user_map,
+        timeline
     )
     
     # Calculate group-specific metrics
@@ -113,7 +117,8 @@ def coach_analytics():
                 athletes_by_group[group],
                 attendance_by_athlete,
                 wellness_by_user,
-                user_map
+                user_map,
+                timeline
             )
     
     # For team metrics, get all athletes (not just selected groups)
@@ -130,7 +135,8 @@ def coach_analytics():
                          group_metrics=group_metrics,
                          combined_metrics=combined_metrics,
                          rosters=roster_list,
-                         selected_groups=selected_groups)
+                         selected_groups=selected_groups,
+                         timeline=timeline)
 
 @athletes_bp.route('/debug/attendance/<date_str>')
 @login_required
@@ -189,6 +195,9 @@ def api_coach_analytics():
         rosters = db.session.query(distinct(Athlete.roster)).filter(Athlete.roster.isnot(None)).order_by(Athlete.roster).all()
         selected_groups = [roster[0] for roster in rosters if roster[0]]
     
+    # Get timeline parameter (default to 'day')
+    timeline = request.args.get('timeline', 'day')
+    
     # Fetch all athletes once
     all_athletes = Athlete.query.filter(Athlete.roster.in_(selected_groups)).all()
     
@@ -230,7 +239,8 @@ def api_coach_analytics():
         all_athletes, 
         attendance_by_athlete, 
         wellness_by_user, 
-        user_map
+        user_map,
+        timeline
     )
     
     # Calculate group-specific metrics using pre-fetched data
@@ -247,7 +257,8 @@ def api_coach_analytics():
                 athletes_by_group[group],
                 attendance_by_athlete,
                 wellness_by_user,
-                user_map
+                user_map,
+                timeline
             )
     
     return jsonify({
@@ -520,9 +531,18 @@ def calculate_skips_metrics(athlete):
         'daily_skips': daily_skips
     }
 
-def calculate_team_metrics_optimized(athletes, attendance_by_athlete, wellness_by_user, user_map):
-    """Optimized version - uses pre-fetched data instead of making new queries"""
+def calculate_team_metrics_optimized(athletes, attendance_by_athlete, wellness_by_user, user_map, timeline='day'):
+    """Optimized version - uses pre-fetched data instead of making new queries
+    
+    Args:
+        athletes: List of athlete objects
+        attendance_by_athlete: Dict mapping athlete_id to list of attendance records
+        wellness_by_user: Dict mapping user_id to list of wellness entries
+        user_map: Dict mapping athlete_id to user_id
+        timeline: 'day', 'week', or 'month' for data aggregation
+    """
     from collections import defaultdict
+    from datetime import timedelta
     
     if not athletes:
         return {
@@ -555,9 +575,9 @@ def calculate_team_metrics_optimized(athletes, attendance_by_athlete, wellness_b
     # Total number of athletes in this group (for percentage calculation)
     total_athletes = len(athletes)
     
-    # Calculate averages
-    avg_attendance_by_date = {}
-    avg_skips_by_date = {}
+    # Calculate averages (daily first)
+    daily_attendance = {}
+    daily_skips = {}
     
     for practice_date, records in attendance_data.items():
         if records:
@@ -566,8 +586,53 @@ def calculate_team_metrics_optimized(athletes, attendance_by_athlete, wellness_b
             if present_count > 0:
                 date_str = practice_date.strftime('%Y-%m-%d')
                 # Calculate percentage: (number present / total athletes in group)
-                avg_attendance_by_date[date_str] = present_count / total_athletes
-                avg_skips_by_date[date_str] = sum(r['skips'] for r in records) / len(records)
+                daily_attendance[date_str] = present_count / total_athletes
+                daily_skips[date_str] = sum(r['skips'] for r in records) / len(records)
+    
+    # Aggregate based on timeline
+    avg_attendance_by_date = {}
+    avg_skips_by_date = {}
+    
+    if timeline == 'week':
+        # Group by week (starting Monday)
+        week_data = defaultdict(lambda: {'attendance': [], 'skips': []})
+        for date_str, attendance in daily_attendance.items():
+            practice_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            # Get Monday of the week
+            week_start = practice_date - timedelta(days=practice_date.weekday())
+            week_key = week_start.strftime('%Y-%m-%d')
+            week_data[week_key]['attendance'].append(attendance)
+            if date_str in daily_skips:
+                week_data[week_key]['skips'].append(daily_skips[date_str])
+        
+        # Average the values for each week
+        for week_key, data in week_data.items():
+            if data['attendance']:
+                avg_attendance_by_date[week_key] = sum(data['attendance']) / len(data['attendance'])
+            if data['skips']:
+                avg_skips_by_date[week_key] = sum(data['skips']) / len(data['skips'])
+    
+    elif timeline == 'month':
+        # Group by month
+        month_data = defaultdict(lambda: {'attendance': [], 'skips': []})
+        for date_str, attendance in daily_attendance.items():
+            practice_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            # First day of the month
+            month_key = practice_date.replace(day=1).strftime('%Y-%m-%d')
+            month_data[month_key]['attendance'].append(attendance)
+            if date_str in daily_skips:
+                month_data[month_key]['skips'].append(daily_skips[date_str])
+        
+        # Average the values for each month
+        for month_key, data in month_data.items():
+            if data['attendance']:
+                avg_attendance_by_date[month_key] = sum(data['attendance']) / len(data['attendance'])
+            if data['skips']:
+                avg_skips_by_date[month_key] = sum(data['skips']) / len(data['skips'])
+    
+    else:  # timeline == 'day' (default)
+        avg_attendance_by_date = daily_attendance
+        avg_skips_by_date = daily_skips
     
     # Calculate overall attendance percentage
     total_practice_days = len(avg_attendance_by_date)
