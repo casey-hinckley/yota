@@ -593,9 +593,10 @@ def calculate_team_metrics_optimized(athletes, attendance_by_athlete, wellness_b
     avg_attendance_by_date = {}
     avg_skips_by_date = {}
     
+    skip_period_dates = {}
     if timeline == 'week':
         # Group by week (starting Monday)
-        week_data = defaultdict(lambda: {'attendance': [], 'skips': []})
+        week_data = defaultdict(lambda: {'attendance': [], 'skips': [], 'dates': []})
         for date_str, attendance in daily_attendance.items():
             practice_date = datetime.strptime(date_str, '%Y-%m-%d').date()
             # Get Monday of the week
@@ -604,6 +605,7 @@ def calculate_team_metrics_optimized(athletes, attendance_by_athlete, wellness_b
             week_data[week_key]['attendance'].append(attendance)
             if date_str in daily_skips:
                 week_data[week_key]['skips'].append(daily_skips[date_str])
+            week_data[week_key]['dates'].append(practice_date)
         
         # Average the values for each week
         for week_key, data in week_data.items():
@@ -611,10 +613,11 @@ def calculate_team_metrics_optimized(athletes, attendance_by_athlete, wellness_b
                 avg_attendance_by_date[week_key] = sum(data['attendance']) / len(data['attendance'])
             if data['skips']:
                 avg_skips_by_date[week_key] = sum(data['skips']) / len(data['skips'])
+                skip_period_dates[week_key] = data['dates']
     
     elif timeline == 'month':
         # Group by month
-        month_data = defaultdict(lambda: {'attendance': [], 'skips': []})
+        month_data = defaultdict(lambda: {'attendance': [], 'skips': [], 'dates': []})
         for date_str, attendance in daily_attendance.items():
             practice_date = datetime.strptime(date_str, '%Y-%m-%d').date()
             # First day of the month
@@ -622,6 +625,7 @@ def calculate_team_metrics_optimized(athletes, attendance_by_athlete, wellness_b
             month_data[month_key]['attendance'].append(attendance)
             if date_str in daily_skips:
                 month_data[month_key]['skips'].append(daily_skips[date_str])
+            month_data[month_key]['dates'].append(practice_date)
         
         # Average the values for each month
         for month_key, data in month_data.items():
@@ -629,10 +633,15 @@ def calculate_team_metrics_optimized(athletes, attendance_by_athlete, wellness_b
                 avg_attendance_by_date[month_key] = sum(data['attendance']) / len(data['attendance'])
             if data['skips']:
                 avg_skips_by_date[month_key] = sum(data['skips']) / len(data['skips'])
+                skip_period_dates[month_key] = data['dates']
     
     else:  # timeline == 'day' (default)
         avg_attendance_by_date = daily_attendance
         avg_skips_by_date = daily_skips
+        skip_period_dates = {
+            date_str: [datetime.strptime(date_str, '%Y-%m-%d').date()]
+            for date_str in daily_skips.keys()
+        }
     
     # Calculate overall attendance percentage
     total_practice_days = len(avg_attendance_by_date)
@@ -643,8 +652,17 @@ def calculate_team_metrics_optimized(athletes, attendance_by_athlete, wellness_b
     
     # Calculate skips metrics (starting from Oct 6, 2025)
     skips_start_date = date(2025, 10, 6)
-    skips_start_str = skips_start_date.strftime('%Y-%m-%d')
-    filtered_skips = {d: v for d, v in avg_skips_by_date.items() if d >= skips_start_str}
+    if timeline == 'day':
+        filtered_skips = {
+            d: v for d, v in avg_skips_by_date.items()
+            if datetime.strptime(d, '%Y-%m-%d').date() >= skips_start_date
+        }
+    else:
+        filtered_skips = {}
+        for period_key, value in avg_skips_by_date.items():
+            period_dates = skip_period_dates.get(period_key, [])
+            if any(d >= skips_start_date for d in period_dates):
+                filtered_skips[period_key] = value
     
     # Calculate wellness averages
     wellness_metrics = {}
