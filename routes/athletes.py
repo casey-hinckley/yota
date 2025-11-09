@@ -552,6 +552,14 @@ def calculate_team_metrics_optimized(athletes, attendance_by_athlete, wellness_b
             'skips_metrics': {}
         }
     
+    # Build roster membership map
+    roster_members = defaultdict(set)
+    athlete_roster_map = {}
+    for athlete in athletes:
+        athlete_roster_map[athlete.id] = athlete.roster
+        if athlete.roster:
+            roster_members[athlete.roster].add(athlete.id)
+
     # Get attendance records from pre-fetched data
     attendance_records = []
     for athlete in athletes:
@@ -568,6 +576,8 @@ def calculate_team_metrics_optimized(athletes, attendance_by_athlete, wellness_b
     attendance_data = defaultdict(list)
     for record in attendance_records:
         attendance_data[record.date].append({
+            'athlete_id': record.athlete_id,
+            'roster': athlete_roster_map.get(record.athlete_id),
             'attendance_value': record.attendance_value,
             'skips': record.skips or 0
         })
@@ -581,13 +591,31 @@ def calculate_team_metrics_optimized(athletes, attendance_by_athlete, wellness_b
     
     for practice_date, records in attendance_data.items():
         if records:
-            # Only include this date if at least one person was present (attendance_value > 0)
-            present_count = sum(1 for r in records if r['attendance_value'] > 0)
-            if present_count > 0:
-                date_str = practice_date.strftime('%Y-%m-%d')
-                # Calculate percentage: (number present / total athletes in group)
-                daily_attendance[date_str] = present_count / total_athletes
-                daily_skips[date_str] = sum(r['skips'] for r in records) / len(records)
+            present_athletes = {r['athlete_id'] for r in records if r['attendance_value'] > 0}
+            if not present_athletes:
+                # All entries were marked absent (likely no practice held) – skip to avoid showing 0%
+                continue
+
+            # Determine which rosters held practice (at least one present athlete)
+            rosters_practiced = {
+                r['roster'] for r in records
+                if r['attendance_value'] > 0 and r['roster']
+            }
+
+            total_scheduled = sum(len(roster_members[roster]) for roster in rosters_practiced)
+            if total_scheduled == 0:
+                # Fallback to previous behaviour if we cannot determine roster sizes
+                total_scheduled = len(records)
+
+            date_str = practice_date.strftime('%Y-%m-%d')
+            # Calculate percentage: (number present / number scheduled for that date)
+            daily_attendance[date_str] = len(present_athletes) / total_scheduled
+
+            total_skips = sum(
+                r['skips'] for r in records
+                if not rosters_practiced or r['roster'] in rosters_practiced
+            )
+            daily_skips[date_str] = total_skips / total_scheduled if total_scheduled else 0
     
     # Aggregate based on timeline
     avg_attendance_by_date = {}
