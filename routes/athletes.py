@@ -596,7 +596,7 @@ def calculate_team_metrics_optimized(athletes, attendance_by_athlete, wellness_b
                 # All entries were marked absent (likely no practice held) – skip to avoid showing 0%
                 continue
 
-            # Determine which rosters held practice (at least one present athlete)
+            # Determine which rosters held practice (at least one attending athlete)
             rosters_practiced = {
                 r['roster'] for r in records
                 if r['attendance_value'] > 0 and r['roster']
@@ -608,8 +608,13 @@ def calculate_team_metrics_optimized(athletes, attendance_by_athlete, wellness_b
                 total_scheduled = len(records)
 
             date_str = practice_date.strftime('%Y-%m-%d')
-            # Calculate percentage: (number present / number scheduled for that date)
-            daily_attendance[date_str] = len(present_athletes) / total_scheduled
+            # Calculate percentage: (sum of attendance values / number scheduled for that date)
+            total_attendance_value = sum(
+                min(r['attendance_value'], 1.0)
+                for r in records
+                if not rosters_practiced or r['roster'] in rosters_practiced
+            )
+            daily_attendance[date_str] = total_attendance_value / total_scheduled
 
             total_skips = sum(
                 r['skips'] for r in records
