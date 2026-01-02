@@ -380,6 +380,10 @@ def calculate_attendance_metrics(athlete):
     
     roster_practice_dates = [record[0] for record in roster_dates_query.all()]
     
+    # Filter out dates before attendance_start_date if set
+    if athlete.attendance_start_date:
+        roster_practice_dates = [d for d in roster_practice_dates if d >= athlete.attendance_start_date]
+    
     # Determine which dates had double practices (at least one person with attendance > 1)
     double_practice_dates = set()
     for practice_date in roster_practice_dates:
@@ -471,13 +475,18 @@ def calculate_skips_metrics(athlete):
     
     roster_practice_dates = [record[0] for record in roster_dates_query.all()]
     
-    # Filter to only include October 6th, 2025 and forward (when skips tracking started)
-    skips_start_date = date(2025, 10, 6)
-    skips_practice_dates = [d for d in roster_practice_dates if d >= skips_start_date]
+    # Determine the effective start date (max of attendance_start_date and skips tracking start)
+    skips_tracking_start = date(2025, 10, 6)
+    if athlete.attendance_start_date:
+        effective_start_date = max(athlete.attendance_start_date, skips_tracking_start)
+    else:
+        effective_start_date = skips_tracking_start
     
-    # Calculate skips score and daily data starting from October 6th, 2025
+    skips_practice_dates = [d for d in roster_practice_dates if d >= effective_start_date]
+    
+    # Calculate skips score and daily data starting from effective start date
     daily_skips = []
-    running_skips_score = 0  # Start at 0 from October 6th, 2025
+    running_skips_score = 0  # Start at 0 from effective start date
     
     for practice_date in skips_practice_dates:
         # Find athlete's attendance record for this date
@@ -516,7 +525,7 @@ def calculate_skips_metrics(athlete):
             'was_absent': attendance_value == 0.0
         })
     
-    # Calculate summary statistics for October 6th, 2025 and forward
+    # Calculate summary statistics from effective start date forward
     total_skips = sum(day['skips_count'] for day in daily_skips)
     days_with_zero_skips = len([day for day in daily_skips if day['skips_count'] == 0])
     total_practice_days = len(daily_skips)
@@ -900,6 +909,16 @@ def update_athlete(athlete_id):
             else:
                 athlete.birthday = None
         
+        if 'attendance_start_date' in data:
+            attendance_start_date = data['attendance_start_date']
+            if attendance_start_date and attendance_start_date != '':
+                try:
+                    athlete.attendance_start_date = datetime.strptime(attendance_start_date, '%Y-%m-%d').date()
+                except ValueError:
+                    return jsonify({'error': 'Invalid attendance start date format. Use YYYY-MM-DD'}), 400
+            else:
+                athlete.attendance_start_date = None
+        
         db.session.commit()
         
         return jsonify({
@@ -912,7 +931,8 @@ def update_athlete(athlete_id):
                 'age': athlete.age,
                 'gender': athlete.gender,
                 'roster': athlete.roster,
-                'birthday': athlete.birthday.strftime('%Y-%m-%d') if athlete.birthday else None
+                'birthday': athlete.birthday.strftime('%Y-%m-%d') if athlete.birthday else None,
+                'attendance_start_date': athlete.attendance_start_date.strftime('%Y-%m-%d') if athlete.attendance_start_date else None
             }
         })
         
