@@ -20,13 +20,11 @@ def parse_attendance_value(raw: str | None) -> float | None:
     if not value:
         return 0.0
 
-    if value.lower() in {"x", "p", "present"}:
+    # Only X is present, everything else is absent
+    if value.upper() == "X":
         return 1.0
-
-    try:
-        return float(value)
-    except ValueError:
-        return None
+    
+    return 0.0
 
 
 def determine_status(value: float) -> str:

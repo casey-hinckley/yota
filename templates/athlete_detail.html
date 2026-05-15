@@ -36,8 +36,7 @@
                         <strong>Gender:</strong> <span id="athleteGender">{{ athlete.gender or 'N/A' }}</span>{% if not athlete.gender %} <span class="badge bg-warning text-dark">Required for swim analysis</span>{% endif %}<br>
                         <strong>Birthday:</strong> <span id="athleteBirthday">{{ athlete.birthday.strftime('%B %d, %Y') if athlete.birthday else 'N/A' }}</span><br>
                         <strong>Preferred Name:</strong> <span id="athletePreferredName">{{ athlete.preferred_name or 'N/A' }}</span><br>
-                        <strong>Roster:</strong> <span id="athleteRoster">{{ athlete.roster or 'No Roster Assigned' }}</span><br>
-                        <strong>Attendance Tracking Start:</strong> <span id="athleteAttendanceStartDate">{{ athlete.attendance_start_date.strftime('%B %d, %Y') if athlete.attendance_start_date else 'Not set (tracks from first practice)' }}</span>
+                        <strong>Roster:</strong> <span id="athleteRoster">{{ athlete.roster or 'No Roster Assigned' }}</span>
                     </p>
                     {% if not athlete.age or not athlete.gender %}
                     <div class="alert alert-warning mb-0">
@@ -90,17 +89,10 @@
                         </div>
                         
                         <div class="row">
-                            <div class="col-md-6">
+                            <div class="col-md-12">
                                 <div class="mb-3">
                                     <label for="editRoster" class="form-label">Roster</label>
                                     <input type="text" class="form-control" id="editRoster" value="{{ athlete.roster or '' }}" placeholder="Practice group or roster">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="editAttendanceStartDate" class="form-label">Attendance Tracking Start Date</label>
-                                    <input type="date" class="form-control" id="editAttendanceStartDate" value="{{ athlete.attendance_start_date.strftime('%Y-%m-%d') if athlete.attendance_start_date else '' }}">
-                                    <small class="form-text text-muted">Practices before this date will be excluded from attendance calculations</small>
                                 </div>
                             </div>
                         </div>
@@ -1443,8 +1435,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 age: document.getElementById('editAge').value,
                 gender: document.getElementById('editGender').value,
                 birthday: document.getElementById('editBirthday').value,
-                roster: document.getElementById('editRoster').value,
-                attendance_start_date: document.getElementById('editAttendanceStartDate').value
+                roster: document.getElementById('editRoster').value
             };
             
             // Show loading state
@@ -1481,18 +1472,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         });
                     } else {
                         document.getElementById('athleteBirthday').textContent = 'N/A';
-                    }
-                    
-                    // Format attendance start date for display
-                    if (data.athlete.attendance_start_date) {
-                        const startDate = new Date(data.athlete.attendance_start_date);
-                        document.getElementById('athleteAttendanceStartDate').textContent = startDate.toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                        });
-                    } else {
-                        document.getElementById('athleteAttendanceStartDate').textContent = 'Not set (tracks from first practice)';
                     }
                     
                     // Update page title

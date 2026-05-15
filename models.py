@@ -40,7 +40,6 @@ class Athlete(db.Model):
     birthday = db.Column(db.Date)
     roster = db.Column(db.String(100))
     gender = db.Column(db.String(10))  # 'Male' or 'Female'
-    attendance_start_date = db.Column(db.Date)  # Start date for attendance tracking (excludes earlier practices)
 
 class Goal(db.Model):
     id = db.Column(db.Integer, primary_key=True)

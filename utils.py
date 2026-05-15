@@ -45,15 +45,34 @@ def get_athlete_gender(athlete_name):
         return 'Male'
     return None
 
+def _strip_time_course_suffix(raw):
+    """
+    Strip trailing pool/course markers from a swim time string.
+    Handles two-letter YL (e.g. Hy-Tek exports) before single Y / L / M.
+    Returns (numeric_time_str, course_key) where course_key is Y, L, M, or ''.
+    """
+    s = str(raw).strip()
+    if not s:
+        return '', ''
+    if len(s) >= 2 and s.endswith('YL'):
+        return s[:-2], 'Y'
+    last = s[-1]
+    if last == 'Y':
+        return s[:-1], 'Y'
+    if last == 'L':
+        return s[:-1], 'L'
+    if last == 'M':
+        return s[:-1], 'M'
+    return s, ''
+
 def parse_time(time_str):
     """Convert time string to seconds for comparison"""
     if pd.isna(time_str) or time_str == '':
         return None
     
-    # Remove course indicator (Y, L, M) and convert to seconds
-    time_str = str(time_str).strip()
-    course_indicator = time_str[-1] if time_str[-1] in ['Y', 'L', 'M'] else ''
-    time_str = time_str[:-1] if course_indicator else time_str
+    time_str, _ = _strip_time_course_suffix(time_str)
+    if not time_str:
+        return None
     
     # Parse time format (MM:SS.ss or SS.ss)
     if ':' in time_str:
@@ -71,10 +90,9 @@ def get_course_from_time(time_str):
     """Extract course from time string"""
     if pd.isna(time_str) or time_str == '':
         return None
-    time_str = str(time_str).strip()
-    course_indicator = time_str[-1] if time_str[-1] in ['Y', 'L', 'M'] else ''
+    _, course_key = _strip_time_course_suffix(time_str)
     course_map = {'Y': 'SCY', 'L': 'LCM', 'M': 'SCM'}
-    return course_map.get(course_indicator)
+    return course_map.get(course_key) if course_key else None
 
 def get_eligible_age_groups(athlete_age):
     """Get age groups the athlete is eligible for based on their exact age"""
