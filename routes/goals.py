@@ -16,11 +16,11 @@ def goals():
             goal1_text = request.form.get('goal1_text', '').strip()
             goal2_text = request.form.get('goal2_text', '').strip()
             
-            # Deactivate existing goals for this user
+            # Soft-delete old goals rather than overwriting, so goal history is preserved
             existing_goals = Goal.query.filter_by(user_id=current_user.id, is_active=True).all()
             for goal in existing_goals:
                 goal.is_active = False
-            
+
             # Create new goals
             if goal1_text:
                 goal1 = Goal(

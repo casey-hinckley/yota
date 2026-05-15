@@ -20,12 +20,10 @@ class User(UserMixin, db.Model):
         return f'<User {self.username}>'
     
     def check_password(self, password):
-        """Check if the provided password matches the stored password"""
-        # Based on add_coaches.py, passwords are stored as plain text
+        # Passwords are stored as plain text — no hashing implemented yet
         return self.password_hash == password
-    
+
     def set_password(self, password):
-        """Set the password (stored as plain text for now)"""
         self.password_hash = password
     
     def get_full_name(self):
@@ -45,7 +43,7 @@ class Goal(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     goal_text = db.Column(db.String(500), nullable=False)
-    goal_type = db.Column(db.String(50), nullable=False)  # 'goal1' or 'goal2'
+    goal_type = db.Column(db.String(50), nullable=False)  # 'goal1' or 'goal2' — maps to the two goal slots tracked in WellnessEntry
     created_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
     user = db.relationship('User', backref='goals')
@@ -93,7 +91,7 @@ class Attendance(db.Model):
     date = db.Column(db.Date, nullable=False)
     status = db.Column(db.String(20), nullable=False)  # 'present', 'absent', 'sick', etc.
     attendance_value = db.Column(db.Float, default=1.0)  # 0.0 to 1.0 for partial attendance
-    skips = db.Column(db.Integer, default=0)  # Number of skips for this athlete on this date
+    skips = db.Column(db.Integer, default=0)  # Cumulative skip count at the time of this record; used to enforce skip limits
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

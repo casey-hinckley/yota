@@ -54,6 +54,7 @@ def ensure_attendance_record(athlete_id: int, practice_date: datetime.date, valu
 
 
 def import_attendance(csv_path: Path, year: int, delimiter: str, roster: str | None, dry_run: bool):
+    # utf-8-sig strips the BOM that Excel adds to CSV exports
     with csv_path.open("r", newline="", encoding="utf-8-sig") as handle:
         reader = csv.reader(handle, delimiter=delimiter)
         rows = [row for row in reader]
@@ -63,6 +64,7 @@ def import_attendance(csv_path: Path, year: int, delimiter: str, roster: str | N
         return
 
     header = rows[0]
+    # CSV date headers are MM/DD only (no year), so year must be supplied separately
     date_columns = []
     for col in header[1:]:
         col_value = col.strip()

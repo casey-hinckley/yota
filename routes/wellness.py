@@ -158,22 +158,6 @@ def get_wellness_data():
     chart_data = []
     running_score = 0  # For goal tracking
     
-    # For mobility, start from tomorrow's date with score 0
-    if metric == 'mobility':
-        from datetime import date, timedelta
-        tomorrow = date.today() + timedelta(days=1)
-        
-        # Filter entries to only include tomorrow and forward
-        entries = [entry for entry in entries if entry.date >= tomorrow]
-        
-        # Create a starting point for tomorrow
-        chart_data.append({
-            'date': tomorrow.strftime('%Y-%m-%d'),
-            'display_date': tomorrow.strftime('%m/%d'),
-            'value': 0,
-            'display_value': 'Score: 0 (Starting Point)'
-        })
-    
     for entry in entries:
         value = getattr(entry, metric, None)
         
@@ -187,8 +171,7 @@ def get_wellness_data():
             numeric_value = value_map.get(value) if value else None
             display_value = value.capitalize() if value else None
         elif metric in ['goal1_achieved', 'goal2_achieved', 'mobility']:
-            # For goals and mobility, calculate running score like attendance
-            # +1 for achieved/completed, -1 for not achieved/not completed
+            # Running score: +1 per day achieved/completed, -1 per day missed
             daily_points = 1 if value else -1
             running_score += daily_points
             numeric_value = running_score
@@ -212,15 +195,12 @@ def get_wellness_data():
     values = [d['value'] for d in chart_data if d['value'] is not None]
     
     if values:
-        # For goal and mobility metrics, statistics are different since we're tracking running score
         if metric in ['goal1_achieved', 'goal2_achieved', 'mobility']:
-            # For mobility, use the filtered entries (today forward)
-            # For goals, use all entries
-            target_entries = entries if metric != 'mobility' else entries
-            achievements = [1 if getattr(entry, metric, None) else 0 for entry in target_entries]
-            avg_value = (sum(achievements) / len(achievements)) * 100 if achievements else 0  # Percentage
-            min_value = min(values)  # Lowest running score
-            max_value = max(values)  # Highest running score
+            # avg is achievement percentage; min/max are the running score bounds
+            achievements = [1 if getattr(entry, metric, None) else 0 for entry in entries]
+            avg_value = (sum(achievements) / len(achievements)) * 100 if achievements else 0
+            min_value = min(values)
+            max_value = max(values)
         else:
             avg_value = sum(values) / len(values)
             min_value = min(values)
@@ -305,8 +285,8 @@ def get_goals_data():
             else:
                 temp_streak = 0
             
-            # Current streak is the temp_streak if we're still in it
-            if entry == entries[-1]:  # Last entry
+            # current_streak is only assigned on the last entry, capturing the active streak
+            if entry == entries[-1]:
                 current_streak = temp_streak
             
             chart_data.append({

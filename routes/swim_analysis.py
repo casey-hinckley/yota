@@ -44,7 +44,6 @@ def get_swim_data():
     course_mapping = {'Y': 'SCY', 'L': 'LCM', 'M': 'SCM'}
     course_name = course_mapping.get(course, course)
     
-    # Query database instead of CSV
     with current_app.app_context():
         # Get athlete from database - support both ID and name
         if athlete_id:
@@ -114,15 +113,12 @@ def get_swim_data():
         meet_standards = standards_df[standards_df['Meet'] == selected_meet]
     else:
         meet_standards = standards_df
-    
-    # Get the next cut for display - consider selected meet
+
     display_next_cut = next_cut
     if selected_meet and not meet_standards.empty:
-        # If a specific meet is selected, find the closest cut from that meet
-        meet_cuts = meet_standards[meet_standards['Meet'] == selected_meet]
+        meet_cuts = meet_standards  # already filtered to selected_meet above
         
         if not meet_cuts.empty:
-            # Find the closest cut from this meet (either achieved or not)
             meet_cuts['distance'] = abs(meet_cuts['time_seconds'] - best_time_seconds)
             closest_meet_cut = meet_cuts.loc[meet_cuts['distance'].idxmin()]
             
@@ -152,6 +148,7 @@ def get_swim_data():
     
     # Prepare data for chart
     def map_type(pft):
+        # 'T' (Time Trial) is not mapped and will fall through to the raw value
         return {'P': 'Prelims', 'F': 'Finals'}.get(str(pft).strip().upper(), str(pft))
 
     chart_data = []
@@ -172,7 +169,8 @@ def get_swim_data():
         'type': map_type(best_time_record['P/F/T'])
     }
     
-    # Calculate attendance-based improvement prediction
+    # CSV-based legacy function; returns None if cleaned_swim_data.csv or
+    # Swimmer_Attendance_Percentages.csv are not present
     attendance_analysis = calculate_time_improvement_analysis(event, course, athlete)
     
     return jsonify({
@@ -184,6 +182,7 @@ def get_swim_data():
         'attendance_analysis': attendance_analysis,
         'athlete_age': int(athlete_age) if athlete_age is not None else None,
         'athlete_gender': str(athlete_gender) if athlete_gender is not None else None,
+        # TODO: remove debug_info before production or gate it behind a flag
         'debug_info': {
             'eligible_age_groups': eligible_age_groups,
             'total_standards_found': len(standards_df),

@@ -380,7 +380,8 @@ def calculate_attendance_metrics(athlete):
     
     roster_practice_dates = [record[0] for record in roster_dates_query.all()]
     
-    # Determine which dates had double practices (at least one person with attendance > 1)
+    # A double-practice day is detected when any athlete on the roster has attendance_value > 1.0
+    # (e.g. 2.0 = attended both morning and afternoon sessions).
     double_practice_dates = set()
     for practice_date in roster_practice_dates:
         max_attendance = db.session.query(db.func.max(Attendance.attendance_value)).join(Athlete).filter(
@@ -389,8 +390,8 @@ def calculate_attendance_metrics(athlete):
         ).scalar()
         if max_attendance and max_attendance > 1.0:
             double_practice_dates.add(practice_date)
-    
-    # Calculate total practice count (counting double practice days as 2)
+
+    # Double-practice days count as 2 opportunities, so add one extra for each
     total_practice_days = len(roster_practice_dates) + len(double_practice_dates)
     
     # Calculate athlete present days (counting their actual attendance)
@@ -398,43 +399,27 @@ def calculate_attendance_metrics(athlete):
     
     attendance_percentage = (athlete_present_days / total_practice_days * 100) if total_practice_days > 0 else 0
     
-    # Create daily attendance data for the line graph with running score
+    # Running score: +attendance_value for any attendance, -1 per missed single practice,
+    # -2 per missed double-practice day. Drives the attendance trend line in the UI.
     daily_attendance = []
-    running_score = 0  # Start at 0, gain points for attendance, lose points for absences
-    
+    running_score = 0
+
     for practice_date in roster_practice_dates:
-        # Find athlete's attendance record for this date
         athlete_record = next((record for record in athlete_attendance if record.date == practice_date), None)
-        
+
         if athlete_record:
             attendance_value = athlete_record.attendance_value
             status = athlete_record.status
         else:
             attendance_value = 0.0
             status = 'absent'
-        
-        # Check if this was a double practice day
+
         is_double_practice = practice_date in double_practice_dates
-        
-        # Calculate points for this day:
-        # The running score increases by the actual attendance value achieved
-        # Penalties for complete absences scale with number of practices missed
+
         if is_double_practice:
-            # Double practice day
-            if attendance_value > 0:
-                # Attended some amount: score increases by attendance value
-                daily_points = attendance_value
-            else:
-                # Missed both practices: -2 penalty
-                daily_points = -2.0
+            daily_points = attendance_value if attendance_value > 0 else -2.0
         else:
-            # Single practice day
-            if attendance_value > 0:
-                # Attended some amount: score increases by attendance value
-                daily_points = attendance_value
-            else:
-                # Missed practice: -1 penalty
-                daily_points = -1.0
+            daily_points = attendance_value if attendance_value > 0 else -1.0
         
         # Update running score
         running_score += daily_points
@@ -458,50 +443,45 @@ def calculate_attendance_metrics(athlete):
     }
 
 def calculate_skips_metrics(athlete):
-    """Calculate skips score and daily data for an athlete starting from October 6th, 2025"""
-    
-    # Get all attendance records for this athlete
+    """Calculate skips score and daily data for an athlete.
+
+    Scoring (per practice day, from Oct 6 2025 onward):
+      Full attendance (>=1.0), 0 skips  → +3
+      Full attendance (>=1.0), N skips  → -N
+      Partial attendance, N skips       → -N (no bonus)
+      Absent                            → 0
+    """
     athlete_attendance = Attendance.query.filter_by(athlete_id=athlete.id).all()
-    
-    # Get all dates where at least one person in the same roster group was present
+
     roster_dates_query = db.session.query(distinct(Attendance.date)).join(Athlete).filter(
         Athlete.roster == athlete.roster,
         Attendance.attendance_value > 0.0
     ).order_by(Attendance.date)
-    
+
     roster_practice_dates = [record[0] for record in roster_dates_query.all()]
-    
-    # Filter to only include October 6th, 2025 and forward (when skips tracking started)
+
+    # Skips tracking began Oct 6 2025; ignore earlier attendance records
     skips_start_date = date(2025, 10, 6)
     skips_practice_dates = [d for d in roster_practice_dates if d >= skips_start_date]
-    
-    # Calculate skips score and daily data starting from October 6th, 2025
+
     daily_skips = []
-    running_skips_score = 0  # Start at 0 from October 6th, 2025
-    
+    running_skips_score = 0
+
     for practice_date in skips_practice_dates:
-        # Find athlete's attendance record for this date
         athlete_record = next((record for record in athlete_attendance if record.date == practice_date), None)
-        
+
         if athlete_record:
             skips_count = athlete_record.skips or 0
             attendance_value = athlete_record.attendance_value or 0.0
         else:
             skips_count = 0
             attendance_value = 0.0
-        
-        # Calculate points for this day:
-        # Only award +3 points for full attendance (1.0) with 0 skips
-        # Still penalize skips even with partial attendance
-        # If absent (attendance_value = 0), score stays the same (0 points)
+
         if attendance_value >= 1.0:
-            # Full attendance: +3 for 0 skips, -1 per skip
             daily_points = 3 if skips_count == 0 else -skips_count
         elif attendance_value > 0:
-            # Partial attendance: only penalize skips, no bonus
             daily_points = -skips_count if skips_count > 0 else 0
         else:
-            # Absent: score stays the same (0 points for the day)
             daily_points = 0
         
         # Update running score
@@ -741,120 +721,6 @@ def calculate_team_metrics_optimized(athletes, attendance_by_athlete, wellness_b
         'wellness_metrics': wellness_metrics
     }
 
-def calculate_team_metrics(athletes):
-    """Calculate aggregate metrics for a group of athletes"""
-    from collections import defaultdict
-    
-    if not athletes:
-        return {
-            'total_athletes': 0,
-            'attendance_metrics': {},
-            'wellness_metrics': {},
-            'skips_metrics': {}
-        }
-    
-    # Get all attendance records for these athletes
-    athlete_ids = [athlete.id for athlete in athletes]
-    attendance_records = Attendance.query.filter(Attendance.athlete_id.in_(athlete_ids)).all()
-    
-    # Get all wellness entries for these athletes (through linked users)
-    wellness_entries = []
-    for athlete in athletes:
-        # Try to find linked user
-        linked_user = User.query.filter(
-            User.first_name + ' ' + User.last_name == athlete.name
-        ).first()
-        
-        if not linked_user and athlete.preferred_name:
-            preferred_full_name = f"{athlete.preferred_name} {athlete.name.split(' ')[-1] if ' ' in athlete.name else ''}"
-            linked_user = User.query.filter(
-                User.first_name + ' ' + User.last_name == preferred_full_name.strip()
-            ).first()
-        
-        if linked_user:
-            user_wellness = WellnessEntry.query.filter_by(user_id=linked_user.id).all()
-            wellness_entries.extend(user_wellness)
-    
-    # Calculate attendance metrics
-    attendance_data = defaultdict(list)
-    for record in attendance_records:
-        attendance_data[record.date].append({
-            'attendance_value': record.attendance_value,
-            'skips': record.skips or 0
-        })
-    
-    # Total number of athletes in this group (for percentage calculation)
-    total_athletes = len(athletes)
-    
-    # Calculate averages
-    avg_attendance_by_date = {}
-    avg_skips_by_date = {}
-    
-    for practice_date, records in attendance_data.items():
-        if records:
-            # Only include this date if at least one person was present (attendance_value > 0)
-            present_count = sum(1 for r in records if r['attendance_value'] > 0)
-            if present_count > 0:
-                date_str = practice_date.strftime('%Y-%m-%d')
-                # Calculate percentage: (number present / total athletes in group)
-                avg_attendance_by_date[date_str] = present_count / total_athletes
-                avg_skips_by_date[date_str] = sum(r['skips'] for r in records) / len(records)
-    
-    # Calculate overall attendance percentage
-    total_practice_days = len(avg_attendance_by_date)
-    if total_practice_days > 0:
-        overall_attendance = sum(avg_attendance_by_date.values()) / total_practice_days * 100
-    else:
-        overall_attendance = 0
-    
-    # Calculate skips metrics (starting from Oct 6, 2025)
-    skips_start_date = date(2025, 10, 6)
-    skips_start_str = skips_start_date.strftime('%Y-%m-%d')
-    filtered_skips = {d: v for d, v in avg_skips_by_date.items() if d >= skips_start_str}
-    
-    # Calculate wellness averages
-    wellness_metrics = {}
-    if wellness_entries:
-        # Group by metric type
-        metrics = ['sleep_hours', 'sleep_quality', 'energy_level', 'stress_level', 
-                  'practice_effort', 'motivation', 'hydration', 'nutrition', 'soreness', 'mobility']
-        
-        for metric in metrics:
-            values = []
-            for entry in wellness_entries:
-                value = getattr(entry, metric, None)
-                if value is not None:
-                    if metric in ['hydration', 'nutrition']:
-                        # Convert to numeric for averaging
-                        value_map = {'poor': 1, 'fair': 2, 'good': 3, 'excellent': 4}
-                        values.append(value_map.get(value, 0))
-                    elif metric == 'soreness':
-                        value_map = {'none': 0, 'mild': 1, 'moderate': 2, 'severe': 3, 'extreme': 4}
-                        values.append(value_map.get(value, 0))
-                    elif metric == 'mobility':
-                        values.append(1 if value else 0)
-                    else:
-                        values.append(value)
-            
-            if values:
-                wellness_metrics[metric] = {
-                    'average': sum(values) / len(values),
-                    'count': len(values)
-                }
-    
-    return {
-        'total_athletes': len(athletes),
-        'attendance_metrics': {
-            'overall_percentage': round(overall_attendance, 1),
-            'total_practice_days': total_practice_days,
-            'daily_averages': avg_attendance_by_date
-        },
-        'skips_metrics': {
-            'daily_averages': filtered_skips,
-            'overall_average': round(sum(filtered_skips.values()) / len(filtered_skips), 2) if filtered_skips else 0
-        },
-        'wellness_metrics': wellness_metrics
-    }
 
 @athletes_bp.route('/api/athlete/<int:athlete_id>', methods=['PUT'])
 @login_required
@@ -933,18 +799,12 @@ def delete_athlete(athlete_id):
     athlete = Athlete.query.get_or_404(athlete_id)
     
     try:
-        # Get counts of related data for confirmation
         attendance_count = Attendance.query.filter_by(athlete_id=athlete_id).count()
         swim_times_count = SwimTime.query.filter_by(athlete_id=athlete_id).count()
-        
-        # Delete all related records first
-        # Delete attendance records
+
+        # Child records must be deleted before the parent to satisfy FK constraints
         Attendance.query.filter_by(athlete_id=athlete_id).delete()
-        
-        # Delete swim time records
         SwimTime.query.filter_by(athlete_id=athlete_id).delete()
-        
-        # Delete the athlete
         db.session.delete(athlete)
         db.session.commit()
         

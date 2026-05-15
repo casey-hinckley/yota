@@ -4,47 +4,41 @@ from dotenv import load_dotenv
 import os
 import urllib.parse
 
-# Load environment variables
 load_dotenv()
 
-# Import models and database
 from models import db, User
 
 def create_app():
-    """Application factory pattern"""
     app = Flask(__name__)
+    # WARNING: the fallback key is insecure — always set SECRET_KEY in .env for production
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-here')
 
-    # Supabase Database Configuration
     SUPABASE_DB_HOST = os.getenv('SUPABASE_DB_HOST')
     SUPABASE_DB_NAME = os.getenv('SUPABASE_DB_NAME', 'postgres')
     SUPABASE_DB_USER = os.getenv('SUPABASE_DB_USER', 'postgres')
     SUPABASE_DB_PASSWORD = os.getenv('SUPABASE_DB_PASSWORD')
     SUPABASE_DB_PORT = os.getenv('SUPABASE_DB_PORT', '5432')
 
-    # Use the exact same Supabase connection as the working routes
     if SUPABASE_DB_HOST and SUPABASE_DB_PASSWORD:
-        # URL encode the password to handle special characters like @
+        # URL-encode the password so special characters (e.g. @) don't break the URI
         encoded_password = urllib.parse.quote(SUPABASE_DB_PASSWORD, safe='')
         app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://{SUPABASE_DB_USER}:{encoded_password}@{SUPABASE_DB_HOST}:{SUPABASE_DB_PORT}/{SUPABASE_DB_NAME}'
         app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
             'connect_args': {
                 'sslmode': 'require',
                 'connect_timeout': 10,
-                'options': '-c statement_timeout=30000'
+                'options': '-c statement_timeout=30000'  # 30 seconds in ms
             },
-            'pool_pre_ping': True,  # Verify connections before using them
-            'pool_recycle': 300,  # Recycle connections after 5 minutes
+            'pool_pre_ping': True,   # drops stale connections before use
+            'pool_recycle': 300,     # recycle connections after 5 minutes
         }
         print(f"🔗 Connecting to Supabase: {SUPABASE_DB_HOST}")
     else:
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///athlete_metrics.db'
         print("🔗 Using SQLite database")
 
-    # Initialize database with app
     db.init_app(app)
 
-    # Initialize Flask-Login
     login_manager = LoginManager()
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
@@ -55,12 +49,12 @@ def create_app():
     def load_user(user_id):
         return User.query.get(int(user_id))
 
-    # Register all route blueprints
     from routes import register_routes
     register_routes(app)
 
     return app
 
+# Module-level app instance required by gunicorn (e.g. `gunicorn app:app`)
 app = create_app()
 
 if __name__ == '__main__':

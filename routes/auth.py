@@ -9,25 +9,24 @@ auth_bp = Blueprint('auth', __name__)
 def login():
     """Handle user login"""
     if current_user.is_authenticated:
-        # Redirect athletes to their own metrics page, coaches to athletes index
         if current_user.user_type != 'coach':
-            # Find the athlete record for this user using improved matching
+            # Athlete names in the Athlete table may differ from the User's stored name
+            # (e.g. preferred names, middle names), so we try three progressively looser strategies.
             athlete = None
-            
-            # Strategy 1: Exact match with full name
+
+            # Strategy 1: Exact full-name match
             athlete = Athlete.query.filter(
                 Athlete.name == current_user.get_full_name()
             ).first()
-            
-            # Strategy 2: Try with preferred name if exact match fails
+
+            # Strategy 2: preferred_name matches first name + last name substring
             if not athlete:
-                # Look for athletes where preferred name matches user's first name
                 athlete = Athlete.query.filter(
                     Athlete.preferred_name == current_user.first_name,
                     Athlete.name.like(f'%{current_user.last_name}%')
                 ).first()
-            
-            # Strategy 3: Partial match (fallback)
+
+            # Strategy 3: partial match on both first and last name (last resort)
             if not athlete:
                 athlete = Athlete.query.filter(
                     Athlete.name.like(f'%{current_user.first_name}%{current_user.last_name}%')
@@ -50,44 +49,40 @@ def login():
             flash('Please fill in all fields.', 'error')
             return render_template('auth/login.html')
         
-        # Use the same pattern as athletes.py and wellness.py - direct query
         user = User.query.filter_by(username=username).first()
         
         if user and user.check_password(password):
             if user.is_active:
+                # NOTE: last_login is not a column on the User model — this line has no effect
                 user.last_login = datetime.utcnow()
                 db.session.commit()
                 login_user(user, remember=remember)
-                
+
                 next_page = request.args.get('next')
+                # Reject absolute URLs in `next` to prevent open-redirect attacks
                 if not next_page or not next_page.startswith('/'):
-                    # Redirect athletes to their own metrics page, coaches to athletes index
                     if user.user_type != 'coach':
-                        # Find the athlete record for this user using improved matching
+                        # Same three-strategy matching as above
                         athlete = None
-                        
-                        # Strategy 1: Exact match with full name
+
                         athlete = Athlete.query.filter(
                             Athlete.name == user.get_full_name()
                         ).first()
-                        
-                        # Strategy 2: Try with preferred name if exact match fails
+
                         if not athlete:
                             athlete = Athlete.query.filter(
                                 Athlete.preferred_name == user.first_name,
                                 Athlete.name.like(f'%{user.last_name}%')
                             ).first()
-                        
-                        # Strategy 3: Partial match (fallback)
+
                         if not athlete:
                             athlete = Athlete.query.filter(
                                 Athlete.name.like(f'%{user.first_name}%{user.last_name}%')
                             ).first()
-                        
+
                         if athlete:
                             next_page = url_for('athletes.athlete_detail', athlete_id=athlete.id)
                         else:
-                            # If no athlete record found, go to goals page for athletes
                             next_page = url_for('goals.goals')
                     else:
                         next_page = url_for('athletes.index')

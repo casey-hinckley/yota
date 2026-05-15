@@ -47,23 +47,20 @@ def api_rankings():
         # Calculate date range based on filter
         today = date.today()
         if time_range == 'week':
-            # Current week: Monday to Saturday
-            # weekday() returns 0=Monday, 1=Tuesday, ... 6=Sunday
-            days_since_monday = today.weekday()
-            start_date = today - timedelta(days=days_since_monday)  # This Monday
-            
-            # If today is Sunday (6), we want to show last week (previous Monday-Saturday)
-            if today.weekday() == 6:
-                start_date = start_date - timedelta(days=7)  # Go back to previous Monday
-            
-            # End date is Saturday of current week
-            days_until_saturday = 5 - today.weekday()  # 5 = Saturday
-            if days_until_saturday < 0:  # If today is Sunday
-                end_date = today - timedelta(days=1)  # Yesterday (Saturday)
+            # Week runs Monday–Saturday. On Sunday we show the just-completed week
+            # (previous Mon–Sat) rather than a one-day "week" of only Sunday.
+            days_since_monday = today.weekday()  # 0=Mon … 6=Sun
+            start_date = today - timedelta(days=days_since_monday)
+
+            if today.weekday() == 6:  # Sunday: shift back to last week
+                start_date = start_date - timedelta(days=7)
+
+            days_until_saturday = 5 - today.weekday()
+            if days_until_saturday < 0:  # Sunday: yesterday was Saturday
+                end_date = today - timedelta(days=1)
             else:
                 end_date = today + timedelta(days=days_until_saturday)
-            
-            # Don't go beyond today
+
             if end_date > today:
                 end_date = today
                 
@@ -158,27 +155,22 @@ def rankings():
 def calculate_all_skip_scores_optimized(athletes, attendance_by_athlete, roster_dates_cache, start_date, end_date):
     """Calculate skip scores for all athletes using pre-fetched data"""
     skip_scores = []
-    skips_start_date = max(date(2025, 10, 6), start_date)  # Respect both tracking start and filter start
-    
+    # max() ensures we never score dates before skips tracking began, even if the
+    # caller's start_date is earlier (e.g. time_range='all').
+    skips_start_date = max(date(2025, 10, 6), start_date)
+
     for athlete in athletes:
         if not athlete.roster or athlete.roster not in roster_dates_cache:
             continue
-        
-        # Get attendance records from lookup dictionary
+
         athlete_attendance = attendance_by_athlete.get(athlete.id, [])
-        
-        # Create dict for fast date lookup
         attendance_by_date = {record.date: record for record in athlete_attendance}
-        
-        # Get practice dates for this roster
         roster_practice_dates = roster_dates_cache[athlete.roster]
-        
-        # Filter to include skips start date and respect time range
-        skips_practice_dates = [d for d in roster_practice_dates if d >= skips_start_date and d <= end_date]
-        
+        skips_practice_dates = [d for d in roster_practice_dates if skips_start_date <= d <= end_date]
+
         if not skips_practice_dates:
             continue
-        
+
         # Calculate running skips score
         running_skips_score = 0
         
@@ -216,27 +208,20 @@ def calculate_all_skip_scores_optimized(athletes, attendance_by_athlete, roster_
 def calculate_all_skip_streaks_optimized(athletes, attendance_by_athlete, roster_dates_cache, start_date, end_date):
     """Calculate current skip streaks using pre-fetched data"""
     skip_streaks = []
-    skips_start_date = max(date(2025, 10, 6), start_date)  # Respect both tracking start and filter start
-    
+    skips_start_date = max(date(2025, 10, 6), start_date)
+
     for athlete in athletes:
         if not athlete.roster or athlete.roster not in roster_dates_cache:
             continue
-        
-        # Get attendance records from lookup dictionary
+
         athlete_attendance = attendance_by_athlete.get(athlete.id, [])
-        
-        # Create dict for fast date lookup
         attendance_by_date = {record.date: record for record in athlete_attendance}
-        
-        # Get practice dates for this roster
         roster_practice_dates = roster_dates_cache[athlete.roster]
-        
-        # Filter to include skips start date and respect time range
-        skips_practice_dates = [d for d in roster_practice_dates if d >= skips_start_date and d <= end_date]
-        
+        skips_practice_dates = [d for d in roster_practice_dates if skips_start_date <= d <= end_date]
+
         if not skips_practice_dates:
             continue
-        
+
         # Calculate current streak (from most recent backwards)
         # Streak continues if they attended practice (any amount) without skips
         current_streak = 0
@@ -272,8 +257,9 @@ def calculate_all_goal_streaks_optimized(users, wellness_by_user, start_date, en
     """Calculate current goal achievement streaks using pre-fetched data"""
     goal_streaks = []
     
-    # Create mapping of user names to athletes for group filtering
-    athlete_map = {f"{athlete.name}": athlete for athlete in all_athletes}
+    # Exact full-name match only — users whose name doesn't exactly match an Athlete
+    # record will be silently excluded from goal rankings.
+    athlete_map = {athlete.name: athlete for athlete in all_athletes}
     
     for user in users:
         # Check if user is in selected groups

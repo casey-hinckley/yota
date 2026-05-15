@@ -139,19 +139,17 @@ def import_swim_times(csv_path: Path, dry_run: bool):
             if not row or len(row) == 0:
                 continue
             
-            # Check if this is an athlete name row (first column has name, rest are empty)
+            # The CSV uses a non-standard format: athlete names appear as section
+            # header rows where the first column holds the name and all other columns
+            # are empty. Actual swim time rows start with a rank number.
             first_col = row[0].strip() if len(row) > 0 else ''
-            
-            # If first column is not a number and looks like a name, it's a new athlete
-            # Athlete names are typically in quotes and contain parentheses with age/gender
+
             if first_col and not first_col.isdigit():
-                # Check if this looks like an athlete name (contains parentheses or comma)
                 looks_like_name = '(' in first_col or ',' in first_col
-                
+
                 if looks_like_name:
-                    # Check if other columns are empty (indicating this is an athlete header)
                     other_cols_empty = all(not col.strip() for col in row[1:]) if len(row) > 1 else True
-                    
+
                     if other_cols_empty:
                         # This is a new athlete section
                         csv_athlete_name = first_col.strip('"')  # Remove quotes if present

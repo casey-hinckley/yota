@@ -58,7 +58,7 @@ def get_attendance(date_str):
         # Create a dictionary for quick lookup
         attendance_dict = {record.athlete_id: record for record in attendance_records}
         
-        # Build response data - only for athletes who have attendance history
+        # Build response — all athletes are included; missing records default to absent/0
         attendance_data = []
         for athlete in athletes_with_attendance:
             record = attendance_dict.get(athlete.id)
@@ -179,12 +179,12 @@ def update_skips():
             existing_record.skips = skips
             existing_record.updated_at = datetime.utcnow()
         else:
-            # Create new record with default values
+            # status and attendance_value are non-nullable, so provide safe defaults
             new_record = Attendance(
                 athlete_id=athlete_id,
                 date=attendance_date,
-                status='absent',  # Default status
-                attendance_value=0.0,  # Default attendance value
+                status='absent',
+                attendance_value=0.0,
                 skips=skips,
                 notes=''
             )

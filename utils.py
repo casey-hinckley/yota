@@ -3,7 +3,7 @@ import re
 from models import db, Athlete, SwimTime
 
 def load_swim_data():
-    """Load and parse swim data from CSV"""
+    # Legacy: reads from CSV, only used by calculate_time_improvement_analysis
     try:
         df = pd.read_csv('cleaned_swim_data.csv')
         return df
@@ -12,7 +12,7 @@ def load_swim_data():
         return pd.DataFrame()
 
 def load_time_standards():
-    """Load and parse time standards from CSV"""
+    """Load meet time standards from all_meet_standards.csv"""
     try:
         df = pd.read_csv('all_meet_standards.csv')
         return df
@@ -21,7 +21,7 @@ def load_time_standards():
         return pd.DataFrame()
 
 def load_attendance_data():
-    """Load and parse attendance data from CSV"""
+    # Legacy: reads from CSV, only used by calculate_time_improvement_analysis
     try:
         df = pd.read_csv('Swimmer_Attendance_Percentages.csv')
         return df
@@ -150,14 +150,13 @@ def get_time_standards_for_event(event, course, gender, athlete_age):
     
     # Filter out "Age Group" entries and only include eligible age groups
     filtered = filtered[
-        (filtered['Age Group'] != 'Age Group') & 
+        (filtered['Age Group'] != 'Age Group') &
         (filtered['Age Group'].isin(eligible_age_groups))
     ]
-    
-    # For YMCA Nationals, we want to show both meets but only the cuts for the selected course
-    # The filtering by course will naturally show the right cuts from each meet
-    
-    # For each meet, keep only the slowest (most challenging) cut the athlete is eligible for
+
+    # An athlete may be eligible for multiple age groups within one meet (e.g. 13-14, 14-Under, Open).
+    # Keep only the most lenient (slowest/highest time) cut per meet so we show the
+    # easiest qualifying standard they could target for that meet.
     filtered = filtered.sort_values(['Meet', 'time_seconds'], ascending=[True, False])
     filtered = filtered.drop_duplicates(subset=['Meet'], keep='first')
     
@@ -192,7 +191,8 @@ def get_next_cut(athlete_best_time, standards_df):
     unachieved_cuts = standards_df[standards_df['time_seconds'] < athlete_best_time].copy()
     
     if unachieved_cuts.empty:
-        # If they have all cuts, show distance past the fastest
+        # Athlete has achieved every eligible cut; return the fastest one with beyond_fastest=True
+        # so the UI can display how far past the top standard they are rather than showing nothing.
         fastest_cut = standards_df.iloc[0]
         return {
             'meet': str(fastest_cut['Meet']),
@@ -220,17 +220,14 @@ def get_next_cut(athlete_best_time, standards_df):
     }
 
 def get_athletes_from_data():
-    """Get unique athletes from swim data"""
-    # Get athletes from database instead of CSV
     athletes = db.session.query(Athlete.name).all()
-    athletes = [athlete[0] for athlete in athletes]  # Extract from tuple
+    athletes = [athlete[0] for athlete in athletes]
     return sorted(athletes)
 
 def get_events_from_data():
-    """Get unique events from swim data organized by stroke"""
-    # Get events from database instead of CSV
+    """Get unique events from the database organized by stroke group"""
     events = db.session.query(SwimTime.event).distinct().all()
-    events = [event[0] for event in events]  # Extract from tuple
+    events = [event[0] for event in events]
     
     if not events:
         return {}
@@ -261,10 +258,8 @@ def get_events_from_data():
     return organized_events
 
 def get_courses_from_data():
-    """Get unique courses from swim data"""
-    # Get courses from database instead of CSV
     courses = db.session.query(SwimTime.course).distinct().all()
-    courses = [course[0] for course in courses if course[0]]  # Extract from tuple and filter None
+    courses = [course[0] for course in courses if course[0]]
     
     if not courses:
         return []
