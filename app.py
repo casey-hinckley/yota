@@ -19,23 +19,22 @@ def create_app():
     SUPABASE_DB_PASSWORD = os.getenv('SUPABASE_DB_PASSWORD')
     SUPABASE_DB_PORT = os.getenv('SUPABASE_DB_PORT', '5432')
 
-    if SUPABASE_DB_HOST and SUPABASE_DB_PASSWORD:
-        # URL-encode the password so special characters (e.g. @) don't break the URI
-        encoded_password = urllib.parse.quote(SUPABASE_DB_PASSWORD, safe='')
-        app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://{SUPABASE_DB_USER}:{encoded_password}@{SUPABASE_DB_HOST}:{SUPABASE_DB_PORT}/{SUPABASE_DB_NAME}'
-        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-            'connect_args': {
-                'sslmode': 'require',
-                'connect_timeout': 10,
-                'options': '-c statement_timeout=30000'  # 30 seconds in ms
-            },
-            'pool_pre_ping': True,   # drops stale connections before use
-            'pool_recycle': 300,     # recycle connections after 5 minutes
-        }
-        print(f"🔗 Connecting to Supabase: {SUPABASE_DB_HOST}")
-    else:
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///athlete_metrics.db'
-        print("🔗 Using SQLite database")
+    if not SUPABASE_DB_HOST or not SUPABASE_DB_PASSWORD:
+        raise RuntimeError("SUPABASE_DB_HOST and SUPABASE_DB_PASSWORD must be set in .env")
+
+    # URL-encode the password so special characters (e.g. @) don't break the URI
+    encoded_password = urllib.parse.quote(SUPABASE_DB_PASSWORD, safe='')
+    app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://{SUPABASE_DB_USER}:{encoded_password}@{SUPABASE_DB_HOST}:{SUPABASE_DB_PORT}/{SUPABASE_DB_NAME}'
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'connect_args': {
+            'sslmode': 'require',
+            'connect_timeout': 10,
+            'options': '-c statement_timeout=30000'  # 30 seconds in ms
+        },
+        'pool_pre_ping': True,   # drops stale connections before use
+        'pool_recycle': 300,     # recycle connections after 5 minutes
+    }
+    print(f"Connecting to Supabase: {SUPABASE_DB_HOST}")
 
     db.init_app(app)
 

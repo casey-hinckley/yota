@@ -7,6 +7,7 @@ Calculate percentage of attended practices with 0 skips for each athlete and the
 import sys
 from pathlib import Path
 from collections import defaultdict
+from datetime import date
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -35,8 +36,10 @@ def analyze_zero_skips_attendance(roster_name):
                 print(f"  - {roster[0]}")
             return
         
+        end_date = date(2026, 3, 19)
+
         print(f"\n{'='*80}")
-        print(f"Analysis for: {roster_name}")
+        print(f"Analysis for: {roster_name} (through {end_date})")
         print(f"Total athletes: {len(athletes)}")
         print(f"{'='*80}\n")
         
@@ -50,7 +53,8 @@ def analyze_zero_skips_attendance(roster_name):
             # Get all attendance records for this athlete where they attended (attendance_value > 0)
             attendance_records = Attendance.query.filter(
                 Attendance.athlete_id == athlete.id,
-                Attendance.attendance_value > 0.0
+                Attendance.attendance_value > 0.0,
+                Attendance.date <= end_date
             ).all()
             
             if not attendance_records:
